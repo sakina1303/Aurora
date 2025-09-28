@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -9,49 +9,112 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-} from 'react-native';
+  Image,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 
 export default function HomeScreen() {
-  const [entry, setEntry] = useState(''); // journal text
+  const [entry, setEntry] = useState("");
+  const [image, setImage] = useState(null);
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]); // yyyy-mm-dd
 
-  const saveEntry = () => {
-    if (entry.trim() === '') {
-      Alert.alert('', 'Please write something before saving!');
-      return;
+  // Load existing entry of the day
+  useEffect(() => {
+    loadEntry(date);
+  }, [date]);
+
+  const loadEntry = async (day) => {
+    try {
+      const saved = await AsyncStorage.getItem(`journal-${day}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setEntry(parsed.text);
+        setImage(parsed.image || null);
+      } else {
+        setEntry("");
+        setImage(null);
+      }
+    } catch (e) {
+      console.log("Error loading journal", e);
     }
-    Alert.alert('Voilaa!', 'Journal Entry Saved');
-    setEntry('');
+  };
+
+  const saveEntry = async (day = date) => {
+    try {
+      const data = { text: entry, image };
+      await AsyncStorage.setItem(`journal-${day}`, JSON.stringify(data));
+      Alert.alert("Voilaa!", `Journal for ${day} saved!`);
+    } catch (e) {
+      console.log("Error saving journal", e);
+    }
+  };
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0].uri);
+    }
+  };
+
+  const goToNextDay = async () => {
+    await saveEntry(date);
+    const newDate = new Date(date);
+    newDate.setDate(newDate.getDate() + 1);
+    const nextDay = newDate.toISOString().split("T")[0];
+    setDate(nextDay);
   };
 
   return (
     <>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Text style={styles.heading}>Today's Journal</Text>
-        <ScrollView style={{ flex: 1 }}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.heading}>Journal of {date}</Text>
+
+          {/* Fixed height input with scroll */}
           <TextInput
             style={styles.input}
             placeholder="Write your thoughts..."
             multiline
             value={entry}
             onChangeText={setEntry}
-            scrollEnabled={true} 
+            scrollEnabled={true}
           />
+
+          {/* Show picked image */}
+          {image && (
+            <Image source={{ uri: image }} style={styles.imagePreview} />
+          )}
+
+          <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+            <Text style={styles.imageButtonText}>
+              {image ? "Change Photo" : "Add Photo"}
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* Buttons */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={saveEntry}>
+        <TouchableOpacity style={styles.button} onPress={() => saveEntry()}>
           <Text style={styles.buttonText}>Save</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.nextButton]}
-          onPress={() => {
-            /* your next page logic here */
-          }}
+          onPress={goToNextDay}
         >
           <Text style={styles.buttonText}>Next Page</Text>
         </TouchableOpacity>
@@ -64,61 +127,79 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff9f3ff',
+    paddingBottom: 80, 
+    backgroundColor: "#fff9f3ff",
     borderRadius: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    alignSelf: 'center',
-    width: '95%',
+    alignSelf: "center",
+    width: "95%",
   },
   heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#726e45ff',
-    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#81745dff",
+    textAlign: "center",
   },
   input: {
-  minHeight: 200,
-  maxHeight: 400,   
-  borderColor: '#94962dff',
-  borderWidth: 1,
-  padding: 12,
-  marginBottom: 20,
-  borderRadius: 10,
-  textAlignVertical: 'top',
-  backgroundColor: '#fff',
-  lineHeight: 22,
-},
-
+    height: 400, 
+    borderColor: "#dcddb6ff",
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    textAlignVertical: "top",
+    backgroundColor: "#fff",
+    lineHeight: 22,
+  },
+  imageButton: {
+    backgroundColor: "#81745dff",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  imageButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  imagePreview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginHorizontal: 20,
     marginBottom: 20,
   },
   button: {
     flex: 1,
-    backgroundColor: '#535418ff',
+    backgroundColor: "#81745dff",
     paddingVertical: 12,
     marginHorizontal: 5,
+     marginTop: 10,
     borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4.65,
-    elevation: 6, // Android shadow
+    elevation: 6,
   },
   nextButton: {
-    backgroundColor: '#726e45ff',
+    backgroundColor: "#81745dff",
+    marginTop: 10,
   },
   buttonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
