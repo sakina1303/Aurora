@@ -5,7 +5,6 @@ import HomeScreen from './screens/HomeScreen';
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-     
       <HomeScreen />
       <StatusBar style="auto" />
     </SafeAreaView>

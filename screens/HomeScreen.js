@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import {
   View,
   TextInput,
@@ -27,7 +28,7 @@ export default function HomeScreen() {
   });
 
   if (!fontsLoaded) {
-    return null; // fonts load hone tak kuch render nahi hoga
+    return null; 
   }
 
   const saveEntry = async (day = date) => {
@@ -61,7 +62,12 @@ export default function HomeScreen() {
 
   return (
     <>
-     <Text style={styles.Textt}>Aurora</Text>
+      <View style={styles.header}>
+  <Ionicons name="menu" size={28} color="#85765eff" style={styles.menuIcon} />
+  <Text style={styles.MainHeading}>Aurora</Text>
+  <View style={{ width: 28 }} /> 
+</View>
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -188,13 +194,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Lobster",
   },
-  Textt:{
-    fontSize: 30,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#85765eff',
-    fontFamily: 'DancingScript',
-    textAlign: 'center',
+  header: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between", // left, center, right
+  paddingHorizontal: 10,
+  paddingVertical: 10,
+},
+menuIcon: {
+  position: "absolute",
+  left: 20,
+},
+MainHeading: {
+  fontSize: 30,
+  fontWeight: "bold",
+  color: "#85765eff",
+  fontFamily: "DancingScript",
+  textAlign: "center",
+  flex: 1, // center alignment
+},
 
-  }
 });
