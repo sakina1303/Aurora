@@ -5,7 +5,7 @@ import HomeScreen from './screens/HomeScreen';
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.Text}>Aurora</Text>
+     
       <HomeScreen />
       <StatusBar style="auto" />
     </SafeAreaView>
@@ -19,11 +19,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  Text:{
-    fontSize: 30,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    color: '#85765eff',
-
-  }
+  
 });
