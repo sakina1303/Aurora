@@ -1,6 +1,7 @@
 import React, { useState, useLayoutEffect, useEffect } from "react";
 import { View, Text, TextInput, Image, TouchableOpacity, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from "expo-image-picker";
 
 export default function JournalDetailScreen({ route, navigation }) {
   const { journal } = route.params;
@@ -9,6 +10,82 @@ export default function JournalDetailScreen({ route, navigation }) {
   const [image, setImage] = useState(journal.image);
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
+
+  // Debug image data
+  useEffect(() => {
+    console.log("Journal data:", journal);
+    console.log("Image URI:", journal.image);
+  }, [journal]);
+
+  const showImagePicker = async () => {
+    Alert.alert(
+      "Change Photo",
+      "Choose an option",
+      [
+        {
+          text: "Camera",
+          onPress: () => pickImage(true),
+        },
+        {
+          text: "Photo Library",
+          onPress: () => pickImage(false),
+        },
+        {
+          text: "Remove Photo",
+          style: "destructive",
+          onPress: () => setImage(null),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
+
+  const pickImage = async (useCamera) => {
+    try {
+      let result;
+      
+      if (useCamera) {
+        // Request camera permissions
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+          return;
+        }
+        
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+      } else {
+        // Request media library permissions
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission needed', 'Photo library permission is required.');
+          return;
+        }
+        
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+      }
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
 
   const saveEdit = async () => {
     const updated = { 
@@ -28,7 +105,7 @@ export default function JournalDetailScreen({ route, navigation }) {
   };
 
   const handleBackPress = () => {
-    if (hasChanges) {
+    if (hasChanges && !isDiscarding) {
       Alert.alert(
         "Discard Changes?",
         "You have unsaved changes. Are you sure you want to leave without saving?",
@@ -40,7 +117,11 @@ export default function JournalDetailScreen({ route, navigation }) {
           {
             text: "Discard Changes",
             style: "destructive",
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              setIsDiscarding(true);
+              setHasChanges(false);
+              setTimeout(() => navigation.goBack(), 100);
+            },
           },
           {
             text: "Save & Exit",
@@ -54,10 +135,10 @@ export default function JournalDetailScreen({ route, navigation }) {
   };
 
   const handleCancelEdit = () => {
-    if (hasChanges) {
+    if (hasChanges && !isDiscarding) {
       Alert.alert(
-        "Cancel Editing?",
-        "You have unsaved changes. What would you like to do?",
+        "Discard Changes?",
+        "You have unsaved changes. Are you sure you want to leave without saving?",
         [
           {
             text: "Keep Editing",
@@ -66,7 +147,11 @@ export default function JournalDetailScreen({ route, navigation }) {
           {
             text: "Discard Changes",
             style: "destructive",
-            onPress: () => navigation.goBack(),
+            onPress: () => {
+              setIsDiscarding(true);
+              setHasChanges(false);
+              setTimeout(() => navigation.goBack(), 100);
+            },
           },
         ]
       );
@@ -86,7 +171,7 @@ export default function JournalDetailScreen({ route, navigation }) {
   // Handle hardware/gesture back button
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (!hasChanges) {
+      if (!hasChanges || isDiscarding) {
         return;
       }
 
@@ -104,6 +189,7 @@ export default function JournalDetailScreen({ route, navigation }) {
             text: "Discard Changes",
             style: "destructive",
             onPress: () => {
+              setIsDiscarding(true);
               setHasChanges(false);
               navigation.dispatch(e.data.action);
             },
@@ -126,7 +212,7 @@ export default function JournalDetailScreen({ route, navigation }) {
     });
 
     return unsubscribe;
-  }, [navigation, hasChanges, text, image, journal.date]);
+  }, [navigation, hasChanges, isDiscarding, text, image, journal.date]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -192,7 +278,27 @@ export default function JournalDetailScreen({ route, navigation }) {
           textAlignVertical="top"
         />
 
-        {image && <Image source={{ uri: image }} style={styles.image} />}
+        {image ? (
+          <TouchableOpacity style={styles.imageContainer} onPress={showImagePicker}>
+            <Image 
+              source={{ uri: image }} 
+              style={styles.image}
+              resizeMode="cover"
+              onError={(error) => {
+                console.log("Image load error:", error.nativeEvent.error);
+                setImage(null);
+              }}
+              onLoad={() => console.log("Image loaded successfully")}
+            />
+            <View style={styles.imageOverlay}>
+              <Text style={styles.imageOverlayText}>Tap to change photo</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.addImageButton} onPress={showImagePicker}>
+            <Text style={styles.addImageText}>📷 Add Photo</Text>
+          </TouchableOpacity>
+        )}
 
         {showSuccess && (
           <View style={styles.successContainer}>
@@ -263,12 +369,51 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     backgroundColor: "#fafafa",
   },
+  imageContainer: {
+    marginBottom: 15,
+    borderRadius: 10,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    position: "relative",
+  },
   image: { 
     width: "100%", 
     height: 200, 
-    borderRadius: 10, 
+    borderRadius: 10,
+  },
+  imageOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    padding: 8,
+    alignItems: "center",
+  },
+  imageOverlayText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  addImageButton: {
+    borderWidth: 2,
+    borderColor: "#81745dff",
+    borderStyle: "dashed",
+    borderRadius: 10,
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 15,
-    resizeMode: "cover"
+    backgroundColor: "#f9f9f9",
+  },
+  addImageText: {
+    color: "#81745dff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   successContainer: {
     backgroundColor: "#81745dff",
