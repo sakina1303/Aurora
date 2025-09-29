@@ -20,7 +20,7 @@ import { useFonts } from "expo-font";
 export default function HomeScreen({ navigation }) {
   const [entry, setEntry] = useState("");
   const [title, setTitle] = useState("");
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Load fonts
@@ -45,7 +45,9 @@ const saveEntry = async (day = date) => {
     const data = { 
       title: title.trim(), 
       text: entry, 
-      image 
+      images,
+      // Keep backward compatibility
+      image: images[0] || null
     };
     await AsyncStorage.setItem(`journal-${day}`, JSON.stringify(data));
     Alert.alert("Voilaa!", `Journal "${data.title}" saved!`);
@@ -122,7 +124,7 @@ const saveEntry = async (day = date) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImage(result.assets[0].uri);
+        setImages(prevImages => [...prevImages, result.assets[0].uri]);
       }
     } catch (error) {
       console.log("Error taking picture:", error);
@@ -156,7 +158,7 @@ const saveEntry = async (day = date) => {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImage(result.assets[0].uri);
+        setImages(prevImages => [...prevImages, result.assets[0].uri]);
       }
     } catch (error) {
       console.log("Error picking image:", error);
@@ -171,7 +173,7 @@ const saveEntry = async (day = date) => {
     setDate(newDate.toISOString().split("T")[0]);
     setEntry("");
     setTitle("");
-    setImage(null);
+    setImages([]);
   };
 
   return (
@@ -209,13 +211,35 @@ const saveEntry = async (day = date) => {
             scrollEnabled={true}
           />
 
-          {image && <Image source={{ uri: image }} style={styles.imagePreview} />}
-
-          <TouchableOpacity style={styles.imageButton} onPress={showImagePicker}>
-            <Text style={styles.imageButtonText}>
-              {image ? "Change Photo" : "Add Photo"}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.photosSection}>
+            <View style={styles.photosSectionHeader}>
+              <Text style={styles.photosSectionTitle}>Photos ({images.length})</Text>
+              <TouchableOpacity style={styles.addPhotoBtn} onPress={showImagePicker}>
+                <Text style={styles.addPhotoBtnText}>+ Add Photo</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
+              {images.map((imageUri, index) => (
+                <View key={index} style={styles.imageContainer}>
+                  <Image 
+                    source={{ uri: imageUri }} 
+                    style={styles.imagePreview}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity 
+                    style={styles.removeImageBtn}
+                    onPress={() => {
+                      const newImages = images.filter((_, i) => i !== index);
+                      setImages(newImages);
+                    }}
+                  >
+                    <Text style={styles.removeImageText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -293,11 +317,67 @@ const styles = StyleSheet.create({
     fontFamily: "Lobster-Regular",
     
   },
-  imagePreview: {
-    width: "100%",
-    height: 200,
-    borderRadius: 10,
+  photosSection: {
+    marginBottom: 15,
+  },
+  photosSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
+  },
+  photosSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#81745dff",
+    fontFamily: "Lobster-Regular",
+  },
+  addPhotoBtn: {
+    backgroundColor: "#81745dff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  addPhotoBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+    fontFamily: "Lobster-Regular",
+  },
+  imagesScrollView: {
+    marginBottom: 10,
+  },
+  imageContainer: {
+    marginRight: 10,
+    borderRadius: 10,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    position: "relative",
+  },
+  imagePreview: {
+    width: 150,
+    height: 150,
+    borderRadius: 10,
+  },
+  removeImageBtn: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    width: 25,
+    height: 25,
+    borderRadius: 12.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeImageText: {
+    color: "#ff4444",
+    fontSize: 18,
+    fontWeight: "bold",
   },
   buttonContainer: {
     flexDirection: "row",

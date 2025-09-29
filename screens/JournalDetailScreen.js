@@ -7,7 +7,7 @@ export default function JournalDetailScreen({ route, navigation }) {
   const { journal } = route.params;
   const [text, setText] = useState(journal.text);
   const [title, setTitle] = useState(journal.title || "");
-  const [image, setImage] = useState(journal.image);
+  const [images, setImages] = useState(journal.images || (journal.image ? [journal.image] : []));
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
@@ -15,12 +15,12 @@ export default function JournalDetailScreen({ route, navigation }) {
   // Debug image data
   useEffect(() => {
     console.log("Journal data:", journal);
-    console.log("Image URI:", journal.image);
-  }, [journal]);
+    console.log("Images:", images);
+  }, [journal, images]);
 
   const showImagePicker = async () => {
     Alert.alert(
-      "Change Photo",
+      "Add Photos",
       "Choose an option",
       [
         {
@@ -30,11 +30,6 @@ export default function JournalDetailScreen({ route, navigation }) {
         {
           text: "Photo Library",
           onPress: () => pickImage(false),
-        },
-        {
-          text: "Remove Photo",
-          style: "destructive",
-          onPress: () => setImage(null),
         },
         {
           text: "Cancel",
@@ -79,7 +74,8 @@ export default function JournalDetailScreen({ route, navigation }) {
       }
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImage(result.assets[0].uri);
+        const newImageUri = result.assets[0].uri;
+        setImages(prevImages => [...prevImages, newImageUri]);
       }
     } catch (error) {
       console.log('Error picking image:', error);
@@ -91,7 +87,9 @@ export default function JournalDetailScreen({ route, navigation }) {
     const updated = { 
       title: title.trim() || `Journal Entry - ${journal.date.replace("journal-", "")}`,
       text, 
-      image 
+      images,
+      // Keep backward compatibility
+      image: images[0] || null
     };
     await AsyncStorage.setItem(journal.date, JSON.stringify(updated));
     setHasChanges(false);
@@ -164,9 +162,10 @@ export default function JournalDetailScreen({ route, navigation }) {
   useEffect(() => {
     const textChanged = text !== journal.text;
     const titleChanged = title !== (journal.title || "");
-    const imageChanged = image !== journal.image;
-    setHasChanges(textChanged || titleChanged || imageChanged);
-  }, [text, title, image, journal.text, journal.title, journal.image]);
+    const originalImages = journal.images || (journal.image ? [journal.image] : []);
+    const imagesChanged = JSON.stringify(images) !== JSON.stringify(originalImages);
+    setHasChanges(textChanged || titleChanged || imagesChanged);
+  }, [text, title, images, journal.text, journal.title, journal.images, journal.image]);
 
   // Handle hardware/gesture back button
   useEffect(() => {
@@ -200,7 +199,9 @@ export default function JournalDetailScreen({ route, navigation }) {
               const updated = { 
                 title: title.trim() || `Journal Entry - ${journal.date.replace("journal-", "")}`,
                 text, 
-                image 
+                images,
+                // Keep backward compatibility
+                image: images[0] || null
               };
               await AsyncStorage.setItem(journal.date, JSON.stringify(updated));
               setHasChanges(false);
@@ -212,7 +213,7 @@ export default function JournalDetailScreen({ route, navigation }) {
     });
 
     return unsubscribe;
-  }, [navigation, hasChanges, isDiscarding, text, image, journal.date]);
+  }, [navigation, hasChanges, isDiscarding, text, images, journal.date]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -278,27 +279,40 @@ export default function JournalDetailScreen({ route, navigation }) {
           textAlignVertical="top"
         />
 
-        {image ? (
-          <TouchableOpacity style={styles.imageContainer} onPress={showImagePicker}>
-            <Image 
-              source={{ uri: image }} 
-              style={styles.image}
-              resizeMode="cover"
-              onError={(error) => {
-                console.log("Image load error:", error.nativeEvent.error);
-                setImage(null);
-              }}
-              onLoad={() => console.log("Image loaded successfully")}
-            />
-            <View style={styles.imageOverlay}>
-              <Text style={styles.imageOverlayText}>Tap to change photo</Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={styles.addImageButton} onPress={showImagePicker}>
-            <Text style={styles.addImageText}>📷 Add Photo</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.photosSection}>
+          <View style={styles.photosSectionHeader}>
+            <Text style={styles.photosSectionTitle}>Photos ({images.length})</Text>
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={showImagePicker}>
+              <Text style={styles.addPhotoBtnText}>+ Add Photo</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
+            {images.map((imageUri, index) => (
+              <View key={index} style={styles.imageContainer}>
+                <Image 
+                  source={{ uri: imageUri }} 
+                  style={styles.image}
+                  resizeMode="cover"
+                  onError={(error) => {
+                    console.log("Image load error:", error.nativeEvent.error);
+                    const newImages = images.filter((_, i) => i !== index);
+                    setImages(newImages);
+                  }}
+                />
+                <TouchableOpacity 
+                  style={styles.removeImageBtn}
+                  onPress={() => {
+                    const newImages = images.filter((_, i) => i !== index);
+                    setImages(newImages);
+                  }}
+                >
+                  <Text style={styles.removeImageText}>×</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
 
         {showSuccess && (
           <View style={styles.successContainer}>
@@ -369,8 +383,36 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     backgroundColor: "#fafafa",
   },
-  imageContainer: {
+  photosSection: {
     marginBottom: 15,
+  },
+  photosSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  photosSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#81745dff",
+  },
+  addPhotoBtn: {
+    backgroundColor: "#81745dff",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  addPhotoBtnText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  imagesScrollView: {
+    marginBottom: 10,
+  },
+  imageContainer: {
+    marginRight: 10,
     borderRadius: 10,
     overflow: "hidden",
     shadowColor: "#000",
@@ -381,9 +423,25 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   image: { 
-    width: "100%", 
-    height: 200, 
+    width: 150, 
+    height: 150, 
     borderRadius: 10,
+  },
+  removeImageBtn: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    width: 25,
+    height: 25,
+    borderRadius: 12.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  removeImageText: {
+    color: "#ff4444",
+    fontSize: 18,
+    fontWeight: "bold",
   },
   imageOverlay: {
     position: "absolute",
