@@ -11,8 +11,8 @@ import {
   Platform,
   TouchableOpacity,
   Image,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useFonts } from "expo-font";
@@ -225,6 +225,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     alignSelf: "center",
     width: "95%",
+    marginBottom: 10,
   },
   heading: {
     fontSize: 22,
@@ -257,6 +258,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "600",
     fontFamily: "Lobster-Regular",
+    
   },
   imagePreview: {
     width: "100%",
@@ -286,12 +288,13 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     backgroundColor: "#81745dff",
-    marginTop: 10,
+   
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
     fontFamily: "Lobster-Regular",
+    
   },
   header: {
     alignItems: "center",
