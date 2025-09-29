@@ -5,15 +5,26 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export default function JournalDetailScreen({ route, navigation }) {
   const { journal } = route.params;
   const [text, setText] = useState(journal.text);
+  const [title, setTitle] = useState(journal.title || "");
   const [image, setImage] = useState(journal.image);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const saveEdit = async () => {
-    const updated = { text, image };
+    const updated = { 
+      title: title.trim() || `Journal Entry - ${journal.date.replace("journal-", "")}`,
+      text, 
+      image 
+    };
     await AsyncStorage.setItem(journal.date, JSON.stringify(updated));
-    Alert.alert("Saved!", "Journal updated successfully.");
     setHasChanges(false);
-    navigation.goBack();
+    
+    // Show success message briefly
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+      navigation.goBack();
+    }, 1500);
   };
 
   const handleBackPress = () => {
@@ -67,9 +78,10 @@ export default function JournalDetailScreen({ route, navigation }) {
   // Check for changes
   useEffect(() => {
     const textChanged = text !== journal.text;
+    const titleChanged = title !== (journal.title || "");
     const imageChanged = image !== journal.image;
-    setHasChanges(textChanged || imageChanged);
-  }, [text, image, journal.text, journal.image]);
+    setHasChanges(textChanged || titleChanged || imageChanged);
+  }, [text, title, image, journal.text, journal.title, journal.image]);
 
   // Handle hardware/gesture back button
   useEffect(() => {
@@ -99,7 +111,11 @@ export default function JournalDetailScreen({ route, navigation }) {
           {
             text: "Save & Exit",
             onPress: async () => {
-              const updated = { text, image };
+              const updated = { 
+                title: title.trim() || `Journal Entry - ${journal.date.replace("journal-", "")}`,
+                text, 
+                image 
+              };
               await AsyncStorage.setItem(journal.date, JSON.stringify(updated));
               setHasChanges(false);
               navigation.dispatch(e.data.action);
@@ -158,6 +174,15 @@ export default function JournalDetailScreen({ route, navigation }) {
         </View>
 
         <TextInput
+          style={styles.titleInput}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Enter journal title..."
+          placeholderTextColor="#999"
+          maxLength={50}
+        />
+
+        <TextInput
           style={styles.input}
           value={text}
           onChangeText={setText}
@@ -168,6 +193,12 @@ export default function JournalDetailScreen({ route, navigation }) {
         />
 
         {image && <Image source={{ uri: image }} style={styles.image} />}
+
+        {showSuccess && (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>✓ Updated successfully</Text>
+          </View>
+        )}
 
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.cancelButton} onPress={handleCancelEdit}>
@@ -208,6 +239,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     flexShrink: 1,
   },
+  titleInput: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    fontSize: 16,
+    fontWeight: "bold",
+    backgroundColor: "#fafafa",
+    color: "#333",
+  },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -227,6 +269,19 @@ const styles = StyleSheet.create({
     borderRadius: 10, 
     marginBottom: 15,
     resizeMode: "cover"
+  },
+  successContainer: {
+    backgroundColor: "#81745dff",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: "center",
+  },
+  successText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   buttonRow: {
     flexDirection: "row",

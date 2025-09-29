@@ -19,6 +19,7 @@ import { useFonts } from "expo-font";
 
 export default function HomeScreen({ navigation }) {
   const [entry, setEntry] = useState("");
+  const [title, setTitle] = useState("");
   const [image, setImage] = useState(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -30,15 +31,24 @@ export default function HomeScreen({ navigation }) {
     return null; 
   }
 const saveEntry = async (day = date) => {
+  if (!title.trim()) {
+    Alert.alert("Oops!", "Please add a title before saving!");
+    return;
+  }
+  
   if (!entry.trim()) {
     Alert.alert("Oops!", "Please write something before saving!");
     return;
   }
 
   try {
-    const data = { text: entry, image };
+    const data = { 
+      title: title.trim(), 
+      text: entry, 
+      image 
+    };
     await AsyncStorage.setItem(`journal-${day}`, JSON.stringify(data));
-    Alert.alert("Voilaa!", `Journal for ${day} saved!`);
+    Alert.alert("Voilaa!", `Journal "${data.title}" saved!`);
   } catch (e) {
     console.log("Error saving journal", e);
   }
@@ -159,6 +169,9 @@ const saveEntry = async (day = date) => {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() + 1);
     setDate(newDate.toISOString().split("T")[0]);
+    setEntry("");
+    setTitle("");
+    setImage(null);
   };
 
   return (
@@ -178,6 +191,14 @@ const saveEntry = async (day = date) => {
         >
             
           <Text style={styles.heading}>Journal of {date}</Text>
+
+          <TextInput
+            style={styles.titleInput}
+            placeholder="Enter journal title..."
+            value={title}
+            onChangeText={setTitle}
+            maxLength={50}
+          />
 
           <TextInput
             style={styles.input}
@@ -215,7 +236,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    paddingBottom: 80,
+    paddingBottom: 20,
     backgroundColor: "#fff9f3ff",
     borderRadius: 10,
     shadowColor: "#000",
@@ -233,6 +254,18 @@ const styles = StyleSheet.create({
     color: "#81745dff",
     textAlign: "center",
     fontFamily: "DancingScript-Regular",
+  },
+  titleInput: {
+    borderColor: "#dcddb6ff",
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    fontFamily: "Lobster-Regular",
+    color: "#81745dff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
   input: {
     height: 400,
@@ -270,14 +303,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginTop: 15,
+
   },
   button: {
     flex: 1,
     backgroundColor: "#81745dff",
     paddingVertical: 12,
     marginHorizontal: 5,
-    marginTop: 10,
     borderRadius: 12,
     alignItems: "center",
     shadowColor: "#000",
