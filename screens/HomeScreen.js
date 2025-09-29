@@ -11,45 +11,146 @@ import {
   Platform,
   TouchableOpacity,
   Image,
+  SafeAreaView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useFonts } from "expo-font";
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const [entry, setEntry] = useState("");
   const [image, setImage] = useState(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Load fonts
   const [fontsLoaded] = useFonts({
-    DancingScript: require("../assets/DancingScript-Regular.ttf"),
-    Lobster: require("../assets/Lobster-Regular.ttf"),
-  });
-
-  if (!fontsLoaded) {
+    'DancingScript-Regular': require("../assets/DancingScript-Regular.ttf"),
+    'Lobster-Regular': require("../assets/Lobster-Regular.ttf"),
+  });  if (!fontsLoaded) {
     return null; 
   }
+const saveEntry = async (day = date) => {
+  if (!entry.trim()) {
+    Alert.alert("Oops!", "Please write something before saving!");
+    return;
+  }
 
-  const saveEntry = async (day = date) => {
+  try {
+    const data = { text: entry, image };
+    await AsyncStorage.setItem(`journal-${day}`, JSON.stringify(data));
+    Alert.alert("Voilaa!", `Journal for ${day} saved!`);
+  } catch (e) {
+    console.log("Error saving journal", e);
+  }
+};
+
+  const showImagePicker = async () => {
+    let isSimulator = false;
+    
     try {
-      const data = { text: entry, image };
-      await AsyncStorage.setItem(`journal-${day}`, JSON.stringify(data));
-      Alert.alert("Voilaa!", `Journal for ${day} saved!`);
-    } catch (e) {
-      console.log("Error saving journal", e);
+      // Check if we're on iOS simulator where camera won't work
+      const cameraPermission = await ImagePicker.getCameraPermissionsAsync();
+      isSimulator = Platform.OS === 'ios' && !cameraPermission.canAskAgain;
+    } catch (error) {
+      // If we can't check permissions, assume it might be simulator
+      isSimulator = Platform.OS === 'ios';
+    }
+    
+    const options = [
+      {
+        text: "Photo Library",
+        onPress: pickImage,
+      }
+    ];
+
+    // Only add camera option if likely not on simulator
+    if (!isSimulator) {
+      options.unshift({
+        text: "Camera",
+        onPress: takePicture,
+      });
+    }
+
+    options.push({
+      text: "Cancel",
+      style: "cancel",
+    });
+
+    Alert.alert(
+      "Select Photo",
+      isSimulator ? "Choose a photo from your library (Camera not available on simulator)" : "Choose how you'd like to add a photo",
+      options
+    );
+  };
+
+  const takePicture = async () => {
+    try {
+      // Check if we're on a simulator
+      const isSimulator = Platform.OS === 'ios' && !await ImagePicker.getCameraPermissionsAsync();
+      
+      if (isSimulator) {
+        Alert.alert(
+          "Camera Not Available", 
+          "Camera is not available on iOS Simulator. Please use Photo Library or test on a physical device.",
+          [{ text: "OK", onPress: pickImage }]
+        );
+        return;
+      }
+
+      // Request camera permission
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      
+      if (cameraPermission.granted === false) {
+        Alert.alert("Permission Required", "Permission to access camera is required!");
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log("Error taking picture:", error);
+      // If it's a simulator error, redirect to photo library
+      if (error.message?.includes('simulator') || error.message?.includes('Camera not available')) {
+        Alert.alert(
+          "Camera Not Available", 
+          "Camera is not available on simulator. Opening photo library instead.",
+          [{ text: "OK", onPress: pickImage }]
+        );
+      } else {
+        Alert.alert("Error", "Failed to take picture. Please try again.");
+      }
     }
   };
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.7,
-    });
+    try {
+      // Request permission to access media library
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert("Permission Required", "Permission to access photo library is required!");
+        return;
+      }
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image. Please try again.");
     }
   };
 
@@ -61,12 +162,10 @@ export default function HomeScreen() {
   };
 
   return (
-    <>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff9f3ff" }}>
       <View style={styles.header}>
-  <Ionicons name="menu" size={28} color="#85765eff" style={styles.menuIcon} />
-  <Text style={styles.MainHeading}>Aurora</Text>
-  <View style={{ width: 28 }} /> 
-</View>
+        <Text style={styles.MainHeading}>Aurora</Text>
+      </View>
 
       <KeyboardAvoidingView
         style={styles.container}
@@ -91,7 +190,7 @@ export default function HomeScreen() {
 
           {image && <Image source={{ uri: image }} style={styles.imagePreview} />}
 
-          <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+          <TouchableOpacity style={styles.imageButton} onPress={showImagePicker}>
             <Text style={styles.imageButtonText}>
               {image ? "Change Photo" : "Add Photo"}
             </Text>
@@ -108,7 +207,7 @@ export default function HomeScreen() {
           <Text style={styles.buttonText}>Next Page</Text>
         </TouchableOpacity>
       </View>
-    </>
+    </SafeAreaView>
   );
 }
 
@@ -132,7 +231,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: "#81745dff",
     textAlign: "center",
-    fontFamily: "DancingScript",
+    fontFamily: "DancingScript-Regular",
   },
   input: {
     height: 400,
@@ -144,7 +243,7 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     backgroundColor: "#fff",
     lineHeight: 22,
-    fontFamily: "Lobster",
+    fontFamily: "Lobster-Regular",
     color: "#81745dff",
   },
   imageButton: {
@@ -157,7 +256,7 @@ const styles = StyleSheet.create({
   imageButtonText: {
     color: "#fff",
     fontWeight: "600",
-    fontFamily: "Lobster",
+    fontFamily: "Lobster-Regular",
   },
   imagePreview: {
     width: "100%",
@@ -192,26 +291,22 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontFamily: "Lobster",
+    fontFamily: "Lobster-Regular",
   },
   header: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between", // left, center, right
-  paddingHorizontal: 10,
-  paddingVertical: 10,
-},
-menuIcon: {
-  position: "absolute",
-  left: 20,
-},
-MainHeading: {
-  fontSize: 30,
-  fontWeight: "bold",
-  color: "#85765eff",
-  fontFamily: "DancingScript",
-  textAlign: "center",
-  flex: 1, // center alignment
-},
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: "#fff9f3ff",
+  },
+  MainHeading: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#85765eff",
+    fontFamily: "DancingScript-Regular",
+    textAlign: "center",
+  },
 
 });

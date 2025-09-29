@@ -32,7 +32,7 @@ export default function MyJournalsScreen() {
       renderItem={({ item }) => (
         <TouchableOpacity
           style={styles.card}
-          onPress={() => navigation.navigate("JournalDetail", { journal: item })}
+          onPress={() => Alert.alert("Journal Entry", `Date: ${item.date.replace("journal-", "")}\n\n${item.text}`)}
         >
           <Text style={styles.date}>{item.date.replace("journal-", "")}</Text>
           <Text numberOfLines={2} style={styles.text}>{item.text}</Text>
@@ -40,7 +40,7 @@ export default function MyJournalsScreen() {
             style={styles.deleteButton}
             onPress={() => deleteJournal(item.date)}
           >
-            <Text style={styles.deleteText}>🗑 Delete</Text>
+            <Text style={styles.deleteText}>Delete</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       )}
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginTop: 5,
     alignSelf: "flex-start",
-    backgroundColor: "#e57373",
+    backgroundColor: "#81745dff",
     padding: 5,
     borderRadius: 5,
   },
