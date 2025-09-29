@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
   View,
@@ -22,12 +22,20 @@ export default function HomeScreen({ navigation }) {
   const [title, setTitle] = useState("");
   const [images, setImages] = useState([]);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Load fonts
   const [fontsLoaded] = useFonts({
     'DancingScript-Regular': require("../assets/DancingScript-Regular.ttf"),
     'Lobster-Regular': require("../assets/Lobster-Regular.ttf"),
-  });  if (!fontsLoaded) {
+  });
+
+  // Reset saved state when content changes
+  useEffect(() => {
+    setIsSaved(false);
+  }, [title, entry, images]);
+
+  if (!fontsLoaded) {
     return null; 
   }
 const saveEntry = async (day = date) => {
@@ -50,6 +58,7 @@ const saveEntry = async (day = date) => {
       image: images[0] || null
     };
     await AsyncStorage.setItem(`journal-${day}`, JSON.stringify(data));
+    setIsSaved(true);
     Alert.alert("Voilaa!", `Journal "${data.title}" saved!`);
   } catch (e) {
     console.log("Error saving journal", e);
@@ -167,13 +176,82 @@ const saveEntry = async (day = date) => {
   };
 
   const goToNextDay = async () => {
-    await saveEntry(date);
+    const hasContent = entry.trim() || title.trim() || images.length > 0;
+    
+    if (hasContent) {
+      if (isSaved) {
+        // Already saved, just move to next day
+        moveToNextDay();
+      } else if (!title.trim() || !entry.trim()) {
+        // Content is incomplete
+        Alert.alert(
+          "Incomplete Entry",
+          "Your journal entry is not complete. What would you like to do?",
+          [
+            {
+              text: "Continue Writing",
+              style: "cancel"
+            },
+            {
+              text: "Discard & Move",
+              style: "destructive",
+              onPress: moveToNextDay
+            }
+          ]
+        );
+      } else {
+        // Content is complete but not saved, ask to save
+        Alert.alert(
+          "Save Entry?",
+          "Do you want to save this journal entry before moving to the next day?",
+          [
+            {
+              text: "Don't Save",
+              style: "destructive",
+              onPress: moveToNextDay
+            },
+            {
+              text: "Cancel",
+              style: "cancel"
+            },
+            {
+              text: "Save & Continue",
+              onPress: async () => {
+                await saveEntry(date);
+                moveToNextDay();
+              }
+            }
+          ]
+        );
+      }
+    } else {
+      // No content, ask for confirmation to skip the day
+      Alert.alert(
+        "Skip Day?",
+        "You haven't written anything for today. Are you sure you want to move to the next day?",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Skip Day",
+            style: "destructive",
+            onPress: moveToNextDay
+          }
+        ]
+      );
+    }
+  };
+
+  const moveToNextDay = () => {
     const newDate = new Date(date);
     newDate.setDate(newDate.getDate() + 1);
     setDate(newDate.toISOString().split("T")[0]);
     setEntry("");
     setTitle("");
     setImages([]);
+    setIsSaved(false);
   };
 
   return (
