@@ -35,6 +35,12 @@ Aurora helps users:
 
 All wrapped in an **aesthetic, calming experience**.  
 
+## 📖 UI/UX Enhancements  
+
+- Realistic **page-turn animation** for diary entries (like flipping a real diary)  
+- Aesthetic **corner cutouts** for a stylish, modern look  
+- Smooth transitions to make journaling more interactive and engaging  
+
 
 ##  Future Enhancements  
 
