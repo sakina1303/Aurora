@@ -106,6 +106,21 @@ export default function MyJournalsScreen() {
             Try searching by date (YYYY-MM-DD) or journal title
           </Text>
         </View>
+      ) : journals.length === 0 ? (
+        <View style={styles.noJournalsContainer}>
+          <Text style={styles.noJournalsText}>
+            No journals yet
+          </Text>
+          <Text style={styles.noJournalsSubtext}>
+            Start your journaling journey today!
+          </Text>
+          <TouchableOpacity 
+            style={styles.writeJournalButton}
+            onPress={() => navigation.navigate("Home")}
+          >
+            <Text style={styles.writeJournalButtonText}>Write First Journal</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={journals}
@@ -193,13 +208,54 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     marginBottom: 10,
-    fontWeight: "bold",
+    fontFamily: "Lobster-Regular",
   },
   noResultsSubtext: {
     fontSize: 14,
     color: "#999",
     textAlign: "center",
     lineHeight: 20,
+    fontFamily: "Lobster-Regular",
+  },
+  noJournalsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingTop: 100,
+  },
+  noJournalsText: {
+    fontSize: 24,
+    color: "#81745dff",
+    textAlign: "center",
+    marginBottom: 10,
+    fontFamily: "DancingScript-Regular",
+  },
+  noJournalsSubtext: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: 30,
+    fontFamily: "Lobster-Regular",
+  },
+  writeJournalButton: {
+    backgroundColor: "#81745dff",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    alignItems: "center",
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 6,
+  },
+  writeJournalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Lobster-Regular",
   },
   card: {
     backgroundColor: "#fff9f3ff",
@@ -218,7 +274,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: "italic"
   },
-  text: { color: "#333" },
+  text: { color: "#333", fontFamily: "Lobster-Regular" },
   buttonRow: { flexDirection: "row", marginTop: 5 },
   editButton: {
     marginRight: 10,
@@ -226,11 +282,11 @@ const styles = StyleSheet.create({
     padding: 5,
     borderRadius: 5,
   },
-  editText: { color: "#fff" },
+  editText: { color: "#fff", fontFamily: "Lobster-Regular" },
   deleteButton: {
     backgroundColor: "#81745dff",
     padding: 5,
     borderRadius: 5,
   },
-  deleteText: { color: "#fff" },
+  deleteText: { color: "#fff", fontFamily: "Lobster-Regular" },
 });

@@ -99,17 +99,10 @@ export default function VisionBoardScreen() {
 
     // Save text when editing stops
     useEffect(() => {
-      if (!isEditing && currentText !== item.text && currentText !== '') {
+      if (!isEditing && currentText !== item.text) {
         updateItemText(item.id, currentText);
       }
     }, [isEditing]);
-
-    // Keep currentText in sync with item.text when not editing
-    useEffect(() => {
-      if (!isEditing) {
-        setCurrentText(item.text || '');
-      }
-    }, [item.text, isEditing]);
 
 
 
@@ -198,15 +191,13 @@ export default function VisionBoardScreen() {
                   setCurrentText(text);
                 }}
                 onBlur={() => {
-                  if (currentText !== item.text) {
-                    updateItemText(item.id, currentText);
-                  }
+                  setCurrentEditingText(currentText);
+                  updateItemText(item.id, currentText);
                   setEditingItemId(null);
                 }}
                 onEndEditing={() => {
-                  if (currentText !== item.text) {
-                    updateItemText(item.id, currentText);
-                  }
+                  setCurrentEditingText(currentText);
+                  updateItemText(item.id, currentText);
                   setEditingItemId(null);
                 }}
                 multiline={true}
@@ -265,16 +256,6 @@ export default function VisionBoardScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actionContainer}>
-        <TouchableOpacity style={styles.actionBtn} onPress={addImage}>
-          <Text style={styles.actionBtnText}>+ Image</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={addTextBox}>
-          <Text style={styles.actionBtnText}>+ Text</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Collage Canvas */}
       <View style={styles.canvas}>
         {/* Invisible overlay to handle tap outside when editing */}
@@ -283,13 +264,10 @@ export default function VisionBoardScreen() {
             style={styles.overlay}
             activeOpacity={0}
             onPress={() => {
-              // Save current text before closing
+              // Get the current text from the editing component and save it
               if (editingItemId) {
-                const editingItem = items.find(item => item.id === editingItemId);
-                if (editingItem) {
-                  // Force the TextInput to blur which will trigger save
-                  setEditingItemId(null);
-                }
+                // The useEffect will handle saving when isEditing becomes false
+                setEditingItemId(null);
               }
             }}
           />
@@ -300,10 +278,20 @@ export default function VisionBoardScreen() {
         ))}
         {items.length === 0 && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>✨ Create Your Vision Board</Text>
+            <Text style={styles.emptyText}>Create Your Vision Board</Text>
             <Text style={styles.emptySubtext}>Add images and text to start building your dreams</Text>
           </View>
         )}
+      </View>
+
+      {/* Action Buttons - Moved Below Canvas */}
+      <View style={styles.actionContainer}>
+        <TouchableOpacity style={styles.actionBtn} onPress={addImage}>
+          <Text style={styles.actionBtnText}>+ Image</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionBtn} onPress={addTextBox}>
+          <Text style={styles.actionBtnText}>+ Text</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -340,26 +328,27 @@ const styles = StyleSheet.create({
   },
   actionContainer: {
     flexDirection: "row",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    marginBottom: 15,
-    gap: 15,
+    justifyContent: "space-between",
+    marginHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 20,
   },
   actionBtn: {
+    flex: 1,
     backgroundColor: "#81745dff",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    elevation: 2,
+    paddingVertical: 12,
+    marginHorizontal: 5,
+    borderRadius: 12,
+    alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 6,
   },
   actionBtnText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "bold",
     fontFamily: "Lobster-Regular",
   },
   canvas: {
@@ -424,7 +413,6 @@ const styles = StyleSheet.create({
     textAlignVertical: "center",
     borderWidth: 0,
     backgroundColor: "transparent",
-    fontFamily: "Lobster-Regular",
   },
   displayText: {
     textAlign: "center",
@@ -433,7 +421,6 @@ const styles = StyleSheet.create({
     padding: 8,
     fontWeight: "bold",
     minHeight: 30,
-    fontFamily: "Lobster-Regular",
   },
   deleteBtn: {
     position: "absolute",
@@ -463,12 +450,13 @@ const styles = StyleSheet.create({
     color: "#81745dff",
     textAlign: "center",
     marginBottom: 10,
-    fontWeight: "bold",
+    fontFamily: "Lobster-Regular",
   },
   emptySubtext: {
     fontSize: 16,
     color: "#999",
     textAlign: "center",
     lineHeight: 22,
+    fontFamily: "Lobster-Regular",
   },
 });
