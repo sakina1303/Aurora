@@ -3,12 +3,22 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput } 
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
+import { useFonts } from "expo-font";
 
 export default function MyJournalsScreen() {
   const [journals, setJournals] = useState([]);
   const [allJournals, setAllJournals] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const navigation = useNavigation();
+
+  // Load fonts
+  const [fontsLoaded] = useFonts({
+    'DancingScript-Regular': require("../assets/DancingScript-Regular.ttf"),
+  });
+
+  if (!fontsLoaded) {
+    return null; 
+  }
 
   const loadJournals = async () => {
     const keys = await AsyncStorage.getAllKeys();
@@ -75,7 +85,7 @@ export default function MyJournalsScreen() {
   }, [navigation]);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff9f3ff" }}>
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -146,21 +156,30 @@ export default function MyJournalsScreen() {
 
 const styles = StyleSheet.create({
   searchContainer: {
-    backgroundColor: "#f5f5f5",
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    backgroundColor: "#fff9f3ff",
+    paddingHorizontal: 12,
+    paddingTop: 5,
+    paddingBottom: 18,
+    marginTop: -50,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",
+    
   },
   searchInput: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     fontSize: 16,
     color: "#333",
     borderWidth: 1,
     borderColor: "#ddd",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+    fontFamily: "DancingScript-Regular",
   },
   noResultsContainer: {
     flex: 1,

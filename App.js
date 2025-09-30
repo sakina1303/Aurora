@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useFonts } from "expo-font";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Screens
 import HomeScreen from "./screens/HomeScreen";
@@ -58,8 +59,38 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Vision Board" component={VisionBoardScreen} />
-      <Tab.Screen name="My Journals" component={MyJournalsScreen} />
+      <Tab.Screen 
+        name="Vision Board" 
+        component={VisionBoardScreen}
+        options={{
+          headerShown: true,
+          title: "Vision Board",
+          headerStyle: {
+            backgroundColor: "#fff9f3ff",
+          },
+          headerTitleStyle: {
+            fontFamily: "DancingScript-Regular",
+            fontSize: 24,
+            color: "#81745dff",
+          },
+        }}
+      />
+      <Tab.Screen 
+        name="My Journals" 
+        component={MyJournalsScreen}
+        options={{
+          headerShown: true,
+          title: "My Journals",
+          headerStyle: {
+            backgroundColor: "#fff9f3ff",
+          },
+          headerTitleStyle: {
+            fontFamily: "DancingScript-Regular",
+            fontSize: 24,
+            color: "#81745dff",
+          },
+        }}
+      />
       <Tab.Screen name="Streaks" component={StreaksScreen} />
     </Tab.Navigator>
   );
@@ -74,40 +105,49 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {/* Bottom Tabs */}
-          <Stack.Screen name="Tabs" component={TabNavigator} />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {/* Bottom Tabs */}
+            <Stack.Screen name="Tabs" component={TabNavigator} />
 
-          {/* Hidden Screens */}
-          <Stack.Screen name="JournalDetail" component={JournalDetailScreen} />
+            {/* Hidden Screens */}
+            <Stack.Screen 
+              name="JournalDetail" 
+              component={JournalDetailScreen}
+              options={{
+                headerShown: true,
+                title: "Edit Journal",
+                headerBackTitleVisible: false,
+              }}
+            />
 
-          <Stack.Screen
-            name="EditJournal"
-            component={EditJournalScreen}
-            options={({ navigation, route }) => ({
-              headerShown: true,
-              title: "Edit Journal",
-              headerBackTitleVisible: false, // just arrow, no text
-              headerRight: () => (
-                <Button
-                  onPress={() => {
-                    // trigger save function inside EditJournalScreen
-                    navigation.emit({
-                      type: "saveJournal",
-                      target: route.key,
-                    });
-                  }}
-                  title="Save"
-                  color="#81745dff"
-                />
-              ),
-            })}
-          />
-        </Stack.Navigator>
-        <StatusBar style="auto" />
-      </NavigationContainer>
-    </SafeAreaProvider>
+            <Stack.Screen
+              name="EditJournal"
+              component={EditJournalScreen}
+              options={({ navigation, route }) => ({
+                headerShown: true,
+                title: "Edit Journal",
+                headerBackTitleVisible: false,
+                headerRight: () => (
+                  <Button
+                    onPress={() => {
+                      navigation.emit({
+                        type: "saveJournal",
+                        target: route.key,
+                      });
+                    }}
+                    title="Save"
+                    color="#81745dff"
+                  />
+                ),
+              })}
+            />
+          </Stack.Navigator>
+          <StatusBar style="auto" />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
-}
+} 

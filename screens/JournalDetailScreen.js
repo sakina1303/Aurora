@@ -215,34 +215,35 @@ export default function JournalDetailScreen({ route, navigation }) {
     return unsubscribe;
   }, [navigation, hasChanges, isDiscarding, text, images, journal.date]);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity
-          onPress={() => handleBackPress()}
-          style={{ paddingLeft: 15 }}
-        >
-          <Text style={{ color: "#81745dff", fontWeight: "bold", fontSize: 16 }}>
-            ← Back
-          </Text>
-        </TouchableOpacity>
-      ),
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={() => saveEdit()}
-          style={{ paddingRight: 15 }}
-        >
-          <Text style={{ 
-            color: hasChanges ? "#81745dff" : "#999", 
-            fontWeight: "bold", 
-            fontSize: 16 
-          }}>
-            Save
-          </Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, hasChanges]);
+  // Header buttons removed - using bottom buttons instead
+  // useLayoutEffect(() => {
+  //   navigation.setOptions({
+  //     headerLeft: () => (
+  //       <TouchableOpacity
+  //         onPress={() => handleBackPress()}
+  //         style={{ paddingLeft: 15 }}
+  //       >
+  //         <Text style={{ color: "#81745dff", fontWeight: "bold", fontSize: 16 }}>
+  //           ← Back
+  //         </Text>
+  //       </TouchableOpacity>
+  //     ),
+  //     headerRight: () => (
+  //       <TouchableOpacity
+  //         onPress={() => saveEdit()}
+  //         style={{ paddingRight: 15 }}
+  //       >
+  //         <Text style={{ 
+  //           color: hasChanges ? "#81745dff" : "#999", 
+  //           fontWeight: "bold", 
+  //           fontSize: 16 
+  //         }}>
+  //           Save
+  //         </Text>
+  //       </TouchableOpacity>
+  //     ),
+  //   });
+  // }, [navigation, hasChanges]);
 
   return (
     <KeyboardAvoidingView 
@@ -255,7 +256,13 @@ export default function JournalDetailScreen({ route, navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.dateContainer}>
-          <Text style={styles.date} numberOfLines={2} adjustsFontSizeToFit>
+          <Text 
+            style={styles.date} 
+            numberOfLines={2} 
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            ellipsizeMode="tail"
+          >
             {journal.date.replace("journal-", "")}
           </Text>
         </View>
@@ -350,7 +357,7 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     marginBottom: 15,
-    paddingHorizontal: 5,
+    paddingHorizontal: 15,
   },
   date: { 
     fontSize: 16, 
@@ -358,6 +365,8 @@ const styles = StyleSheet.create({
     color: "#81745dff",
     textAlign: "center",
     flexShrink: 1,
+    flexWrap: 'wrap',
+    maxWidth: '100%',
   },
   titleInput: {
     borderWidth: 1,
