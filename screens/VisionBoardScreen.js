@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { 
   View, 
   Text, 
@@ -20,7 +20,6 @@ export default function VisionBoardScreen() {
   const [items, setItems] = useState([]);
   const [nextId, setNextId] = useState(1);
   const [editingItemId, setEditingItemId] = useState(null);
-  const [currentEditingText, setCurrentEditingText] = useState('');
 
   const addImage = async () => {
     try {
@@ -94,15 +93,6 @@ export default function VisionBoardScreen() {
   const DraggableItem = ({ item, isEditing }) => {
     const pan = useRef(new Animated.ValueXY()).current;
     const [isDragging, setIsDragging] = useState(false);
-    const [currentText, setCurrentText] = useState(item.text || '');
-    const textInputRef = useRef(null);
-
-    // Save text when editing stops
-    useEffect(() => {
-      if (!isEditing && currentText !== item.text) {
-        updateItemText(item.id, currentText);
-      }
-    }, [isEditing]);
 
 
 
@@ -139,8 +129,6 @@ export default function VisionBoardScreen() {
 
     const startEditing = (e) => {
       e.stopPropagation();
-      setCurrentText(item.text || '');
-      setCurrentEditingText(item.text || '');
       setEditingItemId(item.id);
     };
 
@@ -184,20 +172,15 @@ export default function VisionBoardScreen() {
             {isEditing ? (
               <TextInput
                 key={`text-${item.id}`}
-                ref={textInputRef}
                 style={styles.textInput}
-                value={currentText}
+                value={item.text || ''}
                 onChangeText={(text) => {
-                  setCurrentText(text);
+                  updateItemText(item.id, text);
                 }}
                 onBlur={() => {
-                  setCurrentEditingText(currentText);
-                  updateItemText(item.id, currentText);
                   setEditingItemId(null);
                 }}
                 onEndEditing={() => {
-                  setCurrentEditingText(currentText);
-                  updateItemText(item.id, currentText);
                   setEditingItemId(null);
                 }}
                 multiline={true}
