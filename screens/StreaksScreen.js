@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Modal
+  Modal,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ConfettiCannon from "react-native-confetti-cannon";
@@ -114,6 +115,22 @@ export default function StreaksScreen() {
     setEditingHabit(null);
   };
 
+  const confirmDeleteHabit = (id, name) => {
+    Alert.alert(
+      "Delete habit",
+      `Remove "${name}" from your streaks?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            setHabits((prev) => prev.filter((habitItem) => habitItem.id !== id)),
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.screen}>
       <ConfettiCannon
@@ -170,7 +187,7 @@ export default function StreaksScreen() {
 
               <TouchableOpacity
                 style={styles.deleteBtn}
-                onPress={() => setHabits(habits.filter((x) => x.id !== h.id))}
+                onPress={() => confirmDeleteHabit(h.id, h.name)}
               >
                 <Text style={styles.deleteText}>Delete</Text>
               </TouchableOpacity>
