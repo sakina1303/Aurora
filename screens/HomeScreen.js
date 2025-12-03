@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   TextInput,
@@ -16,6 +15,60 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useFonts } from "expo-font";
+import { WebView } from "react-native-webview";
+
+const PAGE_FLIP_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<style>
+  body { margin: 0; background: transparent; overflow: hidden; font-family: sans-serif; }
+  #book { width: 100vw; height: 100vh; }
+  .page { width: 100%; height: 100%; background: #fff9f3; border: 1px solid #e2d2bc; box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.1); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/4.1.0/turn.min.js"></script>
+</head>
+<body>
+<div id="book">
+  <div class="page"></div>
+  <div class="page"></div>
+</div>
+<script>
+  function initBook() {
+    $('#book').turn({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      gradients: true,
+      duration: 700,
+      elevation: 120,
+      display: 'single',
+      autoCenter: true
+    });
+
+    window.playFlip = function () {
+      $('#book').turn('page', 2);
+      setTimeout(function () {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage('done');
+        }
+      }, 750);
+    };
+
+    setTimeout(function () {
+      window.playFlip();
+    }, 80);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBook);
+  } else {
+    initBook();
+  }
+</script>
+</body>
+</html>`;
 
 export default function HomeScreen({ navigation }) {
   const [entry, setEntry] = useState("");
@@ -23,6 +76,11 @@ export default function HomeScreen({ navigation }) {
   const [images, setImages] = useState([]);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [isSaved, setIsSaved] = useState(false);
+  const [showPageFlip, setShowPageFlip] = useState(false);
+  const [flipKey, setFlipKey] = useState(0);
+  const pendingActionRef = useRef(null);
+  const flipFallbackRef = useRef(null);
+  const webViewRef = useRef(null);
 
   // Load fonts
   const [fontsLoaded] = useFonts({
@@ -38,6 +96,51 @@ export default function HomeScreen({ navigation }) {
   if (!fontsLoaded) {
     return null; 
   }
+
+  useEffect(() => {
+    return () => {
+      if (flipFallbackRef.current) {
+        clearTimeout(flipFallbackRef.current);
+      }
+    };
+  }, []);
+
+  const finishFlip = () => {
+    if (flipFallbackRef.current) {
+      clearTimeout(flipFallbackRef.current);
+      flipFallbackRef.current = null;
+    }
+    setShowPageFlip(false);
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    action?.();
+  };
+
+  const startPageFlip = (onComplete) => {
+    if (showPageFlip) return;
+    pendingActionRef.current = onComplete;
+    setFlipKey((prev) => prev + 1);
+    setShowPageFlip(true);
+    if (flipFallbackRef.current) {
+      clearTimeout(flipFallbackRef.current);
+    }
+    flipFallbackRef.current = setTimeout(finishFlip, 1500);
+  };
+
+  const handleFlipMessage = (event) => {
+    if (event?.nativeEvent?.data === "done") {
+      finishFlip();
+    }
+  };
+
+  const handleFlipLoad = () => {
+    if (webViewRef.current) {
+      webViewRef.current.injectJavaScript(
+        "window.playFlip && window.playFlip(); true;"
+      );
+    }
+  };
+
 const saveEntry = async (day = date) => {
   if (!title.trim()) {
     Alert.alert("Oops!", "Please add a title before saving!");
@@ -176,12 +279,13 @@ const saveEntry = async (day = date) => {
   };
 
   const goToNextDay = async () => {
+    if (showPageFlip) return;
     const hasContent = entry.trim() || title.trim() || images.length > 0;
     
     if (hasContent) {
       if (isSaved) {
         // Already saved, just move to next day
-        moveToNextDay();
+        startPageFlip(moveToNextDay);
       } else if (!title.trim() || !entry.trim()) {
         // Content is incomplete
         Alert.alert(
@@ -195,7 +299,7 @@ const saveEntry = async (day = date) => {
             {
               text: "Discard & Move",
               style: "destructive",
-              onPress: moveToNextDay
+              onPress: () => startPageFlip(moveToNextDay)
             }
           ]
         );
@@ -208,7 +312,7 @@ const saveEntry = async (day = date) => {
             {
               text: "Don't Save",
               style: "destructive",
-              onPress: moveToNextDay
+              onPress: () => startPageFlip(moveToNextDay)
             },
             {
               text: "Cancel",
@@ -218,7 +322,7 @@ const saveEntry = async (day = date) => {
               text: "Save & Continue",
               onPress: async () => {
                 await saveEntry(date);
-                moveToNextDay();
+                startPageFlip(moveToNextDay);
               }
             }
           ]
@@ -237,7 +341,7 @@ const saveEntry = async (day = date) => {
           {
             text: "Skip Day",
             style: "destructive",
-            onPress: moveToNextDay
+            onPress: () => startPageFlip(moveToNextDay)
           }
         ]
       );
@@ -261,64 +365,69 @@ const saveEntry = async (day = date) => {
       </View>
 
       <KeyboardAvoidingView
-        style={styles.container}
+        style={styles.formWrapper}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 20 }}
-          showsVerticalScrollIndicator={false}
+        <View
+          style={styles.container}
+          pointerEvents={showPageFlip ? "none" : "auto"}
         >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            showsVerticalScrollIndicator={false}
+          >
             
-          <Text style={styles.heading}>Journal of {date}</Text>
+            <Text style={styles.heading}>Journal of {date}</Text>
 
-          <TextInput
-            style={styles.titleInput}
-            placeholder="Enter journal title..."
-            value={title}
-            onChangeText={setTitle}
-            maxLength={50}
-          />
+            <TextInput
+              style={styles.titleInput}
+              placeholder="Enter journal title..."
+              value={title}
+              onChangeText={setTitle}
+              maxLength={50}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Write your thoughts..."
-            multiline
-            value={entry}
-            onChangeText={setEntry}
-            scrollEnabled={true}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Write your thoughts..."
+              multiline
+              value={entry}
+              onChangeText={setEntry}
+              scrollEnabled={true}
+            />
 
-          <View style={styles.photosSection}>
-            <View style={styles.photosSectionHeader}>
-              <Text style={styles.photosSectionTitle}>Photos ({images.length})</Text>
-              <TouchableOpacity style={styles.addPhotoBtn} onPress={showImagePicker}>
-                <Text style={styles.addPhotoBtnText}>+ Add Photo</Text>
-              </TouchableOpacity>
+            <View style={styles.photosSection}>
+              <View style={styles.photosSectionHeader}>
+                <Text style={styles.photosSectionTitle}>Photos ({images.length})</Text>
+                <TouchableOpacity style={styles.addPhotoBtn} onPress={showImagePicker}>
+                  <Text style={styles.addPhotoBtnText}>+ Add Photo</Text>
+                </TouchableOpacity>
+              </View>
+            
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
+                {images.map((imageUri, index) => (
+                  <View key={index} style={styles.imageContainer}>
+                    <Image 
+                      source={{ uri: imageUri }} 
+                      style={styles.imagePreview}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity 
+                      style={styles.removeImageBtn}
+                      onPress={() => {
+                        const newImages = images.filter((_, i) => i !== index);
+                        setImages(newImages);
+                      }}
+                    >
+                      <Text style={styles.removeImageText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
-            
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScrollView}>
-              {images.map((imageUri, index) => (
-                <View key={index} style={styles.imageContainer}>
-                  <Image 
-                    source={{ uri: imageUri }} 
-                    style={styles.imagePreview}
-                    resizeMode="cover"
-                  />
-                  <TouchableOpacity 
-                    style={styles.removeImageBtn}
-                    onPress={() => {
-                      const newImages = images.filter((_, i) => i !== index);
-                      setImages(newImages);
-                    }}
-                  >
-                    <Text style={styles.removeImageText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
 
       <View style={styles.buttonContainer}>
@@ -330,6 +439,25 @@ const saveEntry = async (day = date) => {
           <Text style={styles.buttonText}>Next Page</Text>
         </TouchableOpacity>
       </View>
+
+      {showPageFlip && (
+        <View style={styles.flipOverlay} pointerEvents="auto">
+          <WebView
+            key={flipKey}
+            ref={webViewRef}
+            source={{ html: PAGE_FLIP_HTML }}
+            onMessage={handleFlipMessage}
+            onLoadEnd={handleFlipLoad}
+            originWhitelist={["*"]}
+            javaScriptEnabled
+            scrollEnabled={false}
+            style={styles.flipWebView}
+            containerStyle={styles.flipWebView}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -463,6 +591,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 15,
 
+  },
+  formWrapper: {
+    flex: 1,
+  },
+  flipOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    zIndex: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  flipWebView: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   button: {
     flex: 1,
