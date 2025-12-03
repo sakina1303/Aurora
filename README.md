@@ -5,6 +5,10 @@ It blends reflection, motivation, and goal-setting with a calming pastel design 
 
 ---
 
+demo video: https://drive.google.com/file/d/15fNx8J8k5eB9IbzLDBfyymWRCvcBIUTI/view?usp=sharing
+
+---
+
 ## Features  
 
 ### Daily Journal  
