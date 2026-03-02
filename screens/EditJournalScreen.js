@@ -13,7 +13,7 @@ export default function EditJournalScreen({ route, navigation }) {
   const [text, setText] = useState(journal.text);
   const [isChanged, setIsChanged] = useState(false);
 
-  // Update header with custom back action
+  // Update header with custom back action.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerLeft: () => (
