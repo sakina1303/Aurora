@@ -1,380 +1,105 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Modal,
-  Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import ConfettiCannon from "react-native-confetti-cannon";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useRef, useState } from 'react';
+import { Alert, FlatList, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import ConfettiCannon from 'react-native-confetti-cannon';
+import { addDays, currentStreak, loadHabits, localDay, saveHabits } from '../lib/diary';
+import { colors, fonts } from '../theme';
+
+const weekLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function StreaksScreen() {
-  const [habit, setHabit] = useState("");
   const [habits, setHabits] = useState([]);
-  const [nextId, setNextId] = useState(1);
+  const habitsRef = useRef([]);
+  const [today, setToday] = useState(localDay());
+  const [newName, setNewName] = useState('');
+  const [editing, setEditing] = useState(null);
+  const [editName, setEditName] = useState('');
+  const confetti = useRef(null);
+  const writeQueue = useRef(Promise.resolve());
 
-  const [editingHabit, setEditingHabit] = useState(null);
-  const [editedName, setEditedName] = useState("");
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setToday(localDay());
+    writeQueue.current.then(loadHabits).then(items => { if (active) { habitsRef.current = items; setHabits(items); } }).catch(() => { if (active) Alert.alert('Could not load rituals', 'Please try again.'); });
+    return () => { active = false; };
+  }, []));
 
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const confettiRef = useRef(null);
-
-  // 🟣 STREAK BREAK LOGIC – everyday auto check
-  useEffect(() => {
-    const today = new Date().toDateString();
-
-    setHabits((prev) =>
-      prev.map((h) => {
-        if (!h.lastCompleted) return h;
-
-        const last = new Date(h.lastCompleted).toDateString();
-
-        if (
-          last !== today &&
-          last !== new Date(Date.now() - 86400000).toDateString()
-        ) {
-          return { ...h, streak: 0 };
-        }
-        return h;
-      })
-    );
-  }, []);
-
-  // 🟣 Add habit with validation
-  const addHabit = () => {
-    if (!habit.trim()) {
-      setErrorMsg("Please enter a habit name.");
-      setTimeout(() => setErrorMsg(""), 2000);
-      return;
-    }
-
-    const newHabit = {
-      id: nextId,
-      name: habit.trim(),
-      streak: 0,
-      lastCompleted: null,
-    };
-
-    setHabits([...habits, newHabit]);
-    setHabit("");
-    setNextId(nextId + 1);
+  const commit = (items) => {
+    habitsRef.current = items;
+    setHabits(items);
+    writeQueue.current = writeQueue.current.catch(() => {}).then(() => saveHabits(items)).catch(() => Alert.alert('Could not save rituals', 'Please try again.'));
   };
-
-  // 🟣 Mark Done (only once per day) + Confetti
-  const markDone = (id) => {
-    const today = new Date().toDateString();
-
-    setHabits((prev) =>
-      [...prev]
-        .map((h) => {
-          if (h.id === id) {
-            if (h.lastCompleted === today) return h;
-            return { ...h, streak: h.streak + 1, lastCompleted: today };
-          }
-          return h;
-        })
-        .sort((a, b) => b.streak - a.streak)
-    );
-
-    confettiRef.current.start();
+  const add = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const item = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, name, completedDates: [], createdAt: today };
+    commit([...habitsRef.current, item]);
+    setNewName('');
   };
-
-  // 🟣 Undo Done
-  const undoDone = (id) => {
-    const today = new Date().toDateString();
-
-    setHabits((prev) =>
-      prev.map((h) => {
-        if (h.id === id && h.lastCompleted === today && h.streak > 0) {
-          return { ...h, streak: h.streak - 1, lastCompleted: null };
-        }
-        return h;
-      })
-    );
+  const toggle = (habit) => {
+    const completed = habit.completedDates || [];
+    const done = completed.includes(today);
+    commit(habitsRef.current.map(item => item.id === habit.id ? { ...item, completedDates: done ? completed.filter(date => date !== today) : [...completed, today] } : item));
+    if (!done) confetti.current?.start();
   };
-
-  // 🟣 Start Edit
-  const startEditing = (habit) => {
-    setEditingHabit(habit);
-    setEditedName(habit.name);
+  const menu = (habit) => Alert.alert(habit.name, 'Manage this ritual', [
+    { text: 'Rename', onPress: () => { setEditing(habit); setEditName(habit.name); } },
+    { text: 'Delete', style: 'destructive', onPress: () => Alert.alert('Delete ritual?', `Remove ${habit.name} and its history?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => commit(habitsRef.current.filter(item => item.id !== habit.id)) },
+    ]) },
+    { text: 'Cancel', style: 'cancel' },
+  ]);
+  const saveName = () => {
+    const name = editName.trim();
+    if (!name) return;
+    commit(habitsRef.current.map(item => item.id === editing.id ? { ...item, name } : item));
+    setEditing(null);
   };
+  const completedToday = habits.filter(item => (item.completedDates || []).includes(today)).length;
+  const week = Array.from({ length: 7 }, (_, offset) => addDays(today, offset - 6));
 
-  // 🟣 Save Edit
-  const saveEdit = () => {
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id === editingHabit.id ? { ...h, name: editedName } : h
-      )
-    );
-    setEditingHabit(null);
-  };
-
-  const confirmDeleteHabit = (id, name) => {
-    Alert.alert(
-      "Delete habit",
-      `Remove "${name}" from your streaks?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () =>
-            setHabits((prev) => prev.filter((habitItem) => habitItem.id !== id)),
-        },
-      ]
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.screen}>
-      <ConfettiCannon
-        ref={confettiRef}
-        fadeOut
-        autoStart={false}
-        count={120}
-        explosionSpeed={600}
-        origin={{ x: 200, y: -20 }}
-      />
-
-      <Text style={styles.title}>Streaks</Text>
-
-      {/* Input */}
-      <TextInput
-        style={styles.input}
-        placeholder="Enter habit..."
-        value={habit}
-        onChangeText={setHabit}
-      />
-
-      {/* Error Message */}
-      {errorMsg ? <Text style={styles.error}>{errorMsg}</Text> : null}
-
-      {/* Add Habit Button */}
-      <TouchableOpacity style={styles.addButton} onPress={addHabit}>
-        <Text style={styles.addButtonText}>Add Habit</Text>
-      </TouchableOpacity>
-
-      {/* Habit List */}
-      <ScrollView style={{ flex: 1 }}>
-        {habits.map((h) => (
-          <View key={h.id} style={styles.habitCard}>
-            <Text style={styles.habitName}>{h.name}</Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 5 }}>
-              <Ionicons name="flame" size={22} color="#ff7a00" style={{ marginRight: 6 }} />
-              <Text style={styles.streak}>{h.streak} day streak</Text>
-            </View>
-
-            {/* LEFT ALIGNED BUTTONS */}
-            <View style={styles.actions}>
-              <TouchableOpacity style={styles.doneBtn} onPress={() => markDone(h.id)}>
-                <Text style={styles.doneText}>Done</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.undoBtn} onPress={() => undoDone(h.id)}>
-                <Text style={styles.undoText}>Undo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.editBtn} onPress={() => startEditing(h)}>
-                <Text style={styles.editText}>Edit</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => confirmDeleteHabit(h.id, h.name)}
-              >
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* EDIT MODAL */}
-      <Modal visible={!!editingHabit} transparent animationType="fade">
-        <View style={styles.modalBg}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Edit Habit</Text>
-
-            <TextInput
-              style={styles.editInput}
-              value={editedName}
-              onChangeText={setEditedName}
-            />
-
-            <TouchableOpacity style={styles.saveBtn} onPress={saveEdit}>
-              <Text style={styles.saveText}>Save</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => setEditingHabit(null)}
-            >
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
+  return <SafeAreaView style={styles.screen}>
+    {Platform.OS !== 'web' && <ConfettiCannon ref={confetti} autoStart={false} count={35} fadeOut origin={{ x: 190, y: 80 }} />}
+    <View style={styles.header}>
+      <Text style={styles.kicker}>SMALL STEPS, EVERY DAY</Text>
+      <Text style={styles.title}>My rituals</Text>
+      <Text style={styles.intro}>A gentle record of showing up for yourself.</Text>
+    </View>
+    <View style={styles.summary}><Ionicons name="sparkles-outline" size={23} color={colors.brown} /><View style={{ flex: 1, marginLeft: 12 }}><Text style={styles.summaryTitle}>{completedToday} of {habits.length} complete today</Text><Text style={styles.summarySub}>{habits.length ? 'Every little check counts.' : 'Start with one small ritual.'}</Text></View></View>
+    <View style={styles.addRow}><TextInput style={styles.input} value={newName} onChangeText={setNewName} placeholder="A ritual to begin..." placeholderTextColor={colors.muted} returnKeyType="done" onSubmitEditing={add} maxLength={40} accessibilityLabel="New ritual name" /><TouchableOpacity style={styles.addButton} onPress={add} accessibilityLabel="Add ritual"><Ionicons name="add" size={23} color={colors.white} /></TouchableOpacity></View>
+    <FlatList data={habits} keyExtractor={item => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<View style={styles.empty}><Ionicons name="leaf-outline" size={35} color={colors.sage} /><Text style={styles.emptyTitle}>Begin gently</Text><Text style={styles.emptyText}>Add a ritual above, then mark it when you do it today.</Text></View>} renderItem={({ item }) => {
+      const dates = new Set(item.completedDates || []);
+      const done = dates.has(today);
+      const streak = currentStreak(item.completedDates, today);
+      return <View style={styles.card}>
+        <View style={styles.cardTop}><View style={{ flex: 1 }}><Text style={styles.habitName}>{item.name}</Text><Text style={styles.streak}>{streak ? `${streak} day streak` : 'A new beginning'}</Text></View><TouchableOpacity onPress={() => menu(item)} style={styles.more} accessibilityLabel={`Options for ${item.name}`}><Ionicons name="ellipsis-horizontal" size={21} color={colors.muted} /></TouchableOpacity></View>
+        <View style={styles.week}>{week.map((day, i) => <View key={day} style={styles.dayColumn}><Text style={styles.dayLabel}>{weekLetters[new Date(`${day}T12:00:00`).getDay() === 0 ? 6 : new Date(`${day}T12:00:00`).getDay() - 1]}</Text><View style={[styles.dot, dates.has(day) && styles.dotDone, day === today && styles.dotToday]}>{dates.has(day) && <Ionicons name="checkmark" size={13} color={colors.white} />}</View></View>)}</View>
+        <TouchableOpacity style={[styles.completeButton, done && styles.completeButtonDone]} onPress={() => toggle(item)} accessibilityRole="button"><Ionicons name={done ? 'checkmark-circle' : 'ellipse-outline'} size={19} color={done ? colors.brown : colors.white} /><Text style={[styles.completeText, done && styles.completeTextDone]}>{done ? 'Done today · tap to undo' : 'Mark today complete'}</Text></TouchableOpacity>
+      </View>;
+    }} />
+    <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}><View style={styles.modalShade}><View style={styles.modal}><Text style={styles.modalTitle}>Rename ritual</Text><TextInput style={styles.modalInput} value={editName} onChangeText={setEditName} maxLength={40} autoFocus /><View style={styles.modalActions}><TouchableOpacity onPress={() => setEditing(null)}><Text style={styles.cancel}>Cancel</Text></TouchableOpacity><TouchableOpacity onPress={saveName}><Text style={styles.confirm}>Save</Text></TouchableOpacity></View></View></View></Modal>
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: "#fff9f3" },
-
-  title: {
-    fontSize: 40,
-    textAlign: "center",
-    marginTop: 20,
-    marginBottom: 10,
-    color: "#6f5d4d",
-    fontFamily: "DancingScript-Regular",
-  },
-
-  input: {
-    borderWidth: 1,
-    borderColor: "#d2c5b0",
-    borderRadius: 12,
-    padding: 15,
-    marginHorizontal: 20,
-    backgroundColor: "#fff",
-    fontSize: 16,
-  },
-
-  error: {
-    color: "red",
-    textAlign: "center",
-    marginTop: 5,
-    fontSize: 14,
-  },
-
-  addButton: {
-    backgroundColor: "#6f5d4d",
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    alignSelf: "center",
-    borderRadius: 15,
-    marginTop: 12,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-
-  addButtonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontFamily: "Lobster-Regular",
-  },
-
-  habitCard: {
-    backgroundColor: "#ffffffd9",
-    margin: 15,
-    padding: 20,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-  },
-
-  habitName: {
-    fontSize: 22,
-    color: "#6f5d4d",
-    fontFamily: "DancingScript-Regular",
-  },
-
-  streak: {
-    fontSize: 18,
-    color: "#c7b49c",
-    fontFamily: "Lobster-Regular",
-  },
-
-  actions: {
-    flexDirection: "row",
-    marginTop: 15,
-    gap: 10,
-  },
-
-  doneBtn: {
-    backgroundColor: "#c7b49c",
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  undoBtn: {
-    backgroundColor: "#e0a8a8",
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  editBtn: {
-    backgroundColor: "#8e7c68",
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  deleteBtn: {
-    backgroundColor: "#6f5d4d",
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  doneText: { color: "#fff" },
-  undoText: { color: "#fff" },
-  editText: { color: "#fff" },
-  deleteText: { color: "#fff" },
-
-  modalBg: {
-    flex: 1,
-    justifyContent: "center",
-    backgroundColor: "#00000088",
-  },
-
-  modalBox: {
-    margin: 30,
-    padding: 20,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-  },
-
-  modalTitle: {
-    fontSize: 22,
-    fontFamily: "Lobster-Regular",
-    marginBottom: 15,
-    textAlign: "center",
-  },
-
-  editInput: {
-    borderWidth: 1,
-    borderColor: "#d2c5b0",
-    borderRadius: 12,
-    padding: 12,
-    backgroundColor: "#fff",
-  },
-
-  saveBtn: {
-    backgroundColor: "#6f5d4d",
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 15,
-  },
-
-  saveText: { color: "#fff", textAlign: "center" },
-
-  cancelBtn: {
-    padding: 10,
-    marginTop: 10,
-  },
-
-  cancelText: {
-    textAlign: "center",
-    color: "#6f5d4d",
-  },
+  screen: { flex: 1, backgroundColor: colors.canvas },
+  header: { paddingHorizontal: 24, paddingTop: 14 }, kicker: { fontFamily: fonts.body, color: colors.muted, letterSpacing: 2.2, fontSize: 10, fontWeight: '700' },
+  title: { fontFamily: fonts.display, fontSize: 43, color: colors.brown, marginTop: 4 }, intro: { fontFamily: fonts.body, color: colors.muted, fontSize: 13 },
+  summary: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEE6D9', marginHorizontal: 20, marginTop: 20, borderRadius: 14, padding: 17 },
+  summaryTitle: { fontFamily: fonts.body, color: colors.ink, fontWeight: '700', fontSize: 15 }, summarySub: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, marginTop: 3 },
+  addRow: { flexDirection: 'row', marginHorizontal: 20, marginTop: 18, gap: 9 },
+  input: { flex: 1, fontFamily: fonts.body, backgroundColor: colors.paper, color: colors.ink, borderRadius: 12, borderColor: colors.line, borderWidth: 1, paddingHorizontal: 14, height: 48 },
+  addButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brown, borderRadius: 12 },
+  list: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 30 },
+  card: { backgroundColor: colors.paper, borderColor: colors.paperEdge, borderWidth: 1, borderRadius: 13, padding: 18, marginBottom: 13 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start' }, habitName: { fontFamily: fonts.accent, fontSize: 22, color: colors.ink }, streak: { fontFamily: fonts.body, color: colors.brown, fontSize: 12, marginTop: 3 }, more: { padding: 5 },
+  week: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 18 }, dayColumn: { alignItems: 'center', gap: 8 }, dayLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 10 },
+  dot: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#E9E1D6', alignItems: 'center', justifyContent: 'center' }, dotDone: { backgroundColor: colors.sage }, dotToday: { borderWidth: 2, borderColor: colors.brown },
+  completeButton: { backgroundColor: colors.brown, borderRadius: 10, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 },
+  completeButtonDone: { backgroundColor: '#EFE8DC' }, completeText: { fontFamily: fonts.body, color: colors.white, fontSize: 13, fontWeight: '700' }, completeTextDone: { color: colors.brown },
+  empty: { alignItems: 'center', paddingHorizontal: 32, paddingTop: 70 }, emptyTitle: { fontFamily: fonts.display, color: colors.brown, fontSize: 30, marginTop: 10 }, emptyText: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', lineHeight: 21, marginTop: 5 },
+  modalShade: { flex: 1, justifyContent: 'center', backgroundColor: '#0007', padding: 28 }, modal: { backgroundColor: colors.paper, borderRadius: 16, padding: 22 }, modalTitle: { fontFamily: fonts.display, color: colors.brown, fontSize: 29 }, modalInput: { fontFamily: fonts.body, borderWidth: 1, borderColor: colors.line, borderRadius: 10, padding: 12, marginTop: 13, color: colors.ink }, modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 25, marginTop: 20 }, cancel: { fontFamily: fonts.body, color: colors.muted, fontWeight: '700' }, confirm: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700' },
 });

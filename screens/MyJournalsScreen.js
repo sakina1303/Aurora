@@ -1,292 +1,92 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert, TextInput } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useNavigation } from "@react-navigation/native";
-import { useFonts } from "expo-font";
+import React, { useCallback, useMemo, useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { displayDate, listJournals, localDay } from '../lib/diary';
+import { boardHistory, loadVision } from '../lib/vision';
+import { colors, fonts } from '../theme';
 
-export default function MyJournalsScreen() {
-  const [journals, setJournals] = useState([]);
-  const [allJournals, setAllJournals] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const navigation = useNavigation();
+export default function MyJournalsScreen({ navigation }) {
+  const [entries, setEntries] = useState([]);
+  const [visionHistory, setVisionHistory] = useState([]);
+  const [query, setQuery] = useState('');
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    listJournals().then(items => { if (active) setEntries(items); });
+    loadVision().then(value => { if (active) setVisionHistory(boardHistory(value)); });
+    return () => { active = false; };
+  }, []));
+  const visible = useMemo(() => entries.filter(item => `${item.title} ${item.text} ${item.date}`.toLowerCase().includes(query.trim().toLowerCase())), [entries, query]);
 
-  // Load fonts
-  const [fontsLoaded] = useFonts({
-    'DancingScript-Regular': require("../assets/DancingScript-Regular.ttf"),
-  });
-
-  if (!fontsLoaded) {
-    return null; 
-  }
-
-  const loadJournals = async () => {
-    const keys = await AsyncStorage.getAllKeys();
-    const journalKeys = keys.filter((k) => k.startsWith("journal-"));
-    const entries = await AsyncStorage.multiGet(journalKeys);
-    const journalData = entries.map(([k, v]) => ({ date: k, ...JSON.parse(v) }));
-    
-    // Sort by date in descending order (newest first)
-    const sortedJournals = journalData.sort((a, b) => {
-      const dateA = new Date(a.date.replace("journal-", ""));
-      const dateB = new Date(b.date.replace("journal-", ""));
-      return dateB - dateA; // Descending order
-    });
-    
-    setAllJournals(sortedJournals);
-    setJournals(sortedJournals);
-  };
-
-  const handleSearch = (query) => {
-    setSearchQuery(query);
-    
-    if (!query.trim()) {
-      // If search is empty, show all journals
-      setJournals(allJournals);
-      return;
-    }
-    
-    // Filter journals by date or title
-    const filteredJournals = allJournals.filter((journal) => {
-      const dateMatch = journal.date.replace("journal-", "").toLowerCase().includes(query.toLowerCase());
-      const titleMatch = journal.title && journal.title.toLowerCase().includes(query.toLowerCase());
-      return dateMatch || titleMatch;
-    });
-    
-    setJournals(filteredJournals);
-  };
-
-  const confirmDelete = (date) => {
-    Alert.alert(
-      "Delete Journal",
-      `Are you sure you want to delete the journal for ${date.replace("journal-", "")}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => deleteJournal(date) },
-      ]
-    );
-  };
-
-  const deleteJournal = async (date) => {
-    await AsyncStorage.removeItem(date);
-    Alert.alert("Deleted!", `Journal for ${date.replace("journal-", "")} removed.`);
-    loadJournals();
-  };
-
-  const editJournal = (item) => {
-  // Navigate to JournalDetail screen for editing
-  navigation.navigate("JournalDetail", { journal: item });
-};
-
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener("focus", loadJournals);
-    return unsubscribe;
-  }, [navigation]);
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff9f3ff" }}>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by date (YYYY-MM-DD) or title..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={handleSearch}
-          clearButtonMode="while-editing"
-        />
-      </View>
-      
-      {journals.length === 0 && searchQuery.trim() !== "" ? (
-        <View style={styles.noResultsContainer}>
-          <Text style={styles.noResultsText}>
-            No journals found for "{searchQuery}"
-          </Text>
-          <Text style={styles.noResultsSubtext}>
-            Try searching by date (YYYY-MM-DD) or journal title
-          </Text>
-        </View>
-      ) : journals.length === 0 ? (
-        <View style={styles.noJournalsContainer}>
-          <Text style={styles.noJournalsText}>
-            No journals yet
-          </Text>
-          <Text style={styles.noJournalsSubtext}>
-            Start your journaling journey today!
-          </Text>
-          <TouchableOpacity 
-            style={styles.writeJournalButton}
-            onPress={() => navigation.navigate("Home")}
-          >
-            <Text style={styles.writeJournalButtonText}>Write First Journal</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={journals}
-          keyExtractor={(item) => item.date}
-          renderItem={({ item }) => (
-          <View style={styles.card}>
-            <TouchableOpacity
-              onPress={() =>
-                Alert.alert(
-                  item.title || "Journal Entry",
-                  `Date: ${item.date.replace("journal-", "")}\n\n${item.text}`
-                )
-              }
-            >
-              <Text style={styles.date}>{item.date.replace("journal-", "")}</Text>
-              {item.title && (
-                <Text style={styles.title} numberOfLines={1}>
-                  {item.title}
-                </Text>
-              )}
-              <Text numberOfLines={2} style={styles.text}>
-                {item.text}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.buttonRow}>
-              <TouchableOpacity
-                style={styles.editButton}
-                onPress={() => editJournal(item)}
-              >
-                <Text style={styles.editText}>Edit</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => confirmDelete(item.date)}
-              >
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        />
-      )}
-    </SafeAreaView>
-  );
+  return <SafeAreaView style={styles.screen}>
+    <View style={styles.header}>
+      <Text style={styles.kicker}>THE STORY SO FAR</Text>
+      <Text style={styles.title}>My diary</Text>
+      <Text style={styles.intro}>{entries.length} {entries.length === 1 ? 'page' : 'pages'} of moments worth keeping</Text>
+      <TouchableOpacity style={styles.bookButton} onPress={() => navigation.navigate('JournalDetail', { date: localDay() })} accessibilityRole="button" accessibilityLabel="Read as a diary">
+        <Ionicons name="book-outline" size={21} color={colors.white} />
+        <View style={styles.bookCopy}><Text style={styles.bookTitle}>Read as a diary</Text><Text style={styles.bookSubtitle}>Swipe through the days, page by page</Text></View>
+        <Ionicons name="arrow-forward" size={19} color={colors.white} />
+      </TouchableOpacity>
+      <View style={styles.search}><Ionicons name="search-outline" size={18} color={colors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Find a moment..." placeholderTextColor={colors.muted} style={styles.searchInput} accessibilityLabel="Search diary" /></View>
+    </View>
+    <FlatList data={visible} keyExtractor={item => item.date} contentContainerStyle={styles.list} renderItem={({ item }) =>
+      <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={() => navigation.navigate('JournalDetail', { date: item.date })} accessibilityRole="button">
+        <View style={styles.cardTop}><Text style={styles.date}>{displayDate(item.date, { month: 'short', day: 'numeric', year: 'numeric' })}</Text><Text style={styles.number}>NO. {String(entries.length - entries.indexOf(item)).padStart(2, '0')}</Text></View>
+        <Text style={styles.cardTitle} numberOfLines={1}>{item.title || 'Untitled day'}</Text>
+        <Text style={styles.preview} numberOfLines={2}>{item.text}</Text>
+        <View style={styles.cardBottom}><Text style={styles.photos}>{item.images.length ? `${item.images.length} photo${item.images.length === 1 ? '' : 's'}` : 'A written moment'}</Text><Ionicons name="arrow-forward" size={18} color={colors.brown} /></View>
+      </TouchableOpacity>} ListEmptyComponent={<View style={styles.empty}>
+        <Ionicons name={query ? 'search-outline' : 'book-outline'} size={36} color={colors.rose} />
+        <Text style={styles.emptyTitle}>{query ? 'No pages found' : 'Your diary begins here'}</Text>
+        <Text style={styles.emptyText}>{query ? 'Try another word or date.' : 'Write a little about today. This space will hold it for you.'}</Text>
+        {!query && <TouchableOpacity style={styles.writeButton} onPress={() => navigation.navigate('Today')}><Text style={styles.writeText}>Write today’s page</Text></TouchableOpacity>}
+      </View>} ListFooterComponent={<View style={styles.archive}>
+        <Text style={styles.archiveKicker}>THE DREAMS YOU KEPT</Text>
+        <Text style={styles.archiveTitle}>Vision board history</Text>
+        {visionHistory.length ? visionHistory.map(item => <TouchableOpacity key={`${item.kind}-${item.key}`} style={styles.historyCard} onPress={() => navigation.navigate('Vision', { kind: item.kind, period: item.key })} accessibilityRole="button" accessibilityLabel={`Open ${item.kind} vision board from ${item.label}`}>
+          <View style={styles.historyIcon}><Ionicons name={item.kind === 'Yearly' ? 'sparkles-outline' : 'calendar-outline'} size={20} color={colors.brown} /></View>
+          <View style={{ flex: 1 }}><Text style={styles.historyName}>{item.label}</Text><Text style={styles.historyMeta}>{item.kind} · {item.done} done · {item.total - item.done} pending</Text></View>
+          <Ionicons name="arrow-forward" size={17} color={colors.brown} />
+        </TouchableOpacity>) : <View style={styles.historyEmpty}><Text style={styles.historyEmptyText}>Your past monthly and yearly boards will appear here as time goes by.</Text></View>}
+      </View>} />
+  </SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
-  searchContainer: {
-    backgroundColor: "#fff9f3ff",
-    paddingHorizontal: 12,
-    paddingTop: 5,
-    paddingBottom: 18,
-    marginTop: -50,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-    
-  },
-  searchInput: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 16,
-    color: "#333",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-    fontFamily: "DancingScript-Regular",
-  },
-  noResultsContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 100,
-  },
-  noResultsText: {
-    fontSize: 18,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 10,
-    fontFamily: "Lobster-Regular",
-  },
-  noResultsSubtext: {
-    fontSize: 14,
-    color: "#999",
-    textAlign: "center",
-    lineHeight: 20,
-    fontFamily: "Lobster-Regular",
-  },
-  noJournalsContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 40,
-    paddingTop: 100,
-  },
-  noJournalsText: {
-    fontSize: 24,
-    color: "#81745dff",
-    textAlign: "center",
-    marginBottom: 10,
-    fontFamily: "DancingScript-Regular",
-  },
-  noJournalsSubtext: {
-    fontSize: 16,
-    color: "#999",
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 30,
-    fontFamily: "Lobster-Regular",
-  },
-  writeJournalButton: {
-    backgroundColor: "#81745dff",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 12,
-    alignItems: "center",
-    alignSelf: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 6,
-  },
-  writeJournalButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Lobster-Regular",
-  },
-  card: {
-    backgroundColor: "#fff9f3ff",
-    padding: 15,
-    margin: 10,
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  date: { fontWeight: "bold", marginBottom: 5, color: "#81745dff", fontSize: 12 },
-  title: { 
-    fontWeight: "bold", 
-    marginBottom: 5, 
-    color: "#2c2c2c", 
-    fontSize: 16,
-    fontStyle: "italic"
-  },
-  text: { color: "#333", fontFamily: "Lobster-Regular" },
-  buttonRow: { flexDirection: "row", marginTop: 5 },
-  editButton: {
-    marginRight: 10,
-    backgroundColor: "#c7b49cff",
-    padding: 5,
-    borderRadius: 5,
-  },
-  editText: { color: "#fff", fontFamily: "Lobster-Regular" },
-  deleteButton: {
-    backgroundColor: "#81745dff",
-    padding: 5,
-    borderRadius: 5,
-  },
-  deleteText: { color: "#fff", fontFamily: "Lobster-Regular" },
+  screen: { flex: 1, backgroundColor: colors.canvas },
+  header: { paddingHorizontal: 24, paddingTop: 14 },
+  kicker: { fontFamily: fonts.body, color: colors.muted, letterSpacing: 2.2, fontSize: 10, fontWeight: '700' },
+  title: { fontFamily: fonts.display, color: colors.brown, fontSize: 43, marginTop: 4 },
+  intro: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, marginBottom: 17 },
+  bookButton: { backgroundColor: colors.brown, borderRadius: 13, flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 17, paddingVertical: 15, marginBottom: 18 },
+  bookCopy: { flex: 1 },
+  bookTitle: { color: colors.white, fontFamily: fonts.accent, fontSize: 18 },
+  bookSubtitle: { fontFamily: fonts.body, color: colors.white, opacity: 0.8, fontSize: 11, marginTop: 2 },
+  search: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, borderRadius: 12, paddingHorizontal: 14, height: 45 },
+  searchInput: { flex: 1, fontFamily: fonts.body, color: colors.ink, marginLeft: 8, fontSize: 14 },
+  list: { padding: 20, paddingBottom: 35 },
+  card: { backgroundColor: colors.paper, padding: 20, marginBottom: 13, borderRadius: 10, borderWidth: 1, borderColor: colors.paperEdge, shadowColor: '#6C5B4D', shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between' },
+  date: { fontFamily: fonts.body, color: colors.muted, fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  number: { fontFamily: fonts.body, color: colors.muted, fontSize: 10, letterSpacing: 1 },
+  cardTitle: { color: colors.ink, fontFamily: fonts.accent, fontSize: 23, marginTop: 10 },
+  preview: { fontFamily: fonts.body, color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 7 },
+  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: colors.line, marginTop: 15, paddingTop: 12 },
+  photos: { fontFamily: fonts.body, color: colors.muted, fontSize: 11 },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 38, paddingVertical: 44 },
+  emptyTitle: { fontFamily: fonts.display, fontSize: 30, color: colors.brown, marginTop: 15 },
+  emptyText: { fontFamily: fonts.body, color: colors.muted, fontSize: 14, textAlign: 'center', lineHeight: 21, marginTop: 6 },
+  writeButton: { backgroundColor: colors.brown, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 12, marginTop: 22 },
+  writeText: { color: colors.white, fontFamily: fonts.accent, fontSize: 16 },
+  archive: { marginTop: 15, paddingTop: 21, borderTopWidth: 1, borderColor: colors.line },
+  archiveKicker: { color: colors.muted, fontFamily: fonts.body, letterSpacing: 1.8, fontSize: 10, fontWeight: '700' },
+  archiveTitle: { color: colors.brown, fontFamily: fonts.display, fontSize: 30, marginTop: 3, marginBottom: 12 },
+  historyCard: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paperEdge, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  historyIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EEE7DB', alignItems: 'center', justifyContent: 'center' },
+  historyName: { color: colors.ink, fontFamily: fonts.accent, fontSize: 18 },
+  historyMeta: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, marginTop: 2 },
+  historyEmpty: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paperEdge, borderRadius: 12, padding: 17 },
+  historyEmptyText: { color: colors.muted, fontFamily: fonts.body, fontSize: 13, lineHeight: 20 },
 });

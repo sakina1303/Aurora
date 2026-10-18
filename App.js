@@ -1,153 +1,54 @@
-import React from "react";
-import { StatusBar, View, Text, Button } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
-import { useFonts } from "expo-font";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-
-// Screens
-import HomeScreen from "./screens/HomeScreen";
-import VisionBoardScreen from "./screens/VisionBoardScreen";
-import MyJournalsScreen from "./screens/MyJournalsScreen";
-import StreaksScreen from "./screens/StreaksScreen";
-import JournalDetailScreen from "./screens/JournalDetailScreen";
-import EditJournalScreen from "./screens/EditJournalScreen";
+import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { StatusBar } from 'expo-status-bar';
+import HomeScreen from './screens/HomeScreen';
+import VisionBoardScreen from './screens/VisionBoardScreen';
+import MyJournalsScreen from './screens/MyJournalsScreen';
+import StreaksScreen from './screens/StreaksScreen';
+import JournalDetailScreen from './screens/JournalDetailScreen';
+import { colors, fonts } from './theme';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const icons = { Today: 'book-outline', Diary: 'albums-outline', Vision: 'sparkles-outline', Streaks: 'flame-outline' };
 
-function TabNavigator() {
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: "#81745dff",
-        tabBarInactiveTintColor: "#999",
-        tabBarStyle: {
-          backgroundColor: "#fff",
-          height: 65,
-        },
-        tabBarLabel: ({ color }) => (
-          <Text
-            style={{
-              fontFamily: "Lobster-Regular",
-              fontSize: 12,
-              textAlign: "center",
-              color,
-              marginTop: 2,
-            }}
-          >
-            {route.name}
-          </Text>
-        ),
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          if (route.name === "Home") iconName = focused ? "home" : "home-outline";
-          else if (route.name === "Vision Board") iconName = focused ? "star" : "star-outline";
-          else if (route.name === "My Journals") iconName = focused ? "book" : "book-outline";
-          else if (route.name === "Streaks") iconName = focused ? "flame" : "flame-outline";
-
-          return (
-            <View style={{ alignItems: "center", justifyContent: "center" }}>
-              <Ionicons name={iconName} size={size} color={color} />
-            </View>
-          );
-        },
-      })}
-    >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen 
-        name="Vision Board" 
-        component={VisionBoardScreen}
-        options={{
-          headerShown: true,
-          title: "Vision Board",
-          headerStyle: {
-            backgroundColor: "#fff9f3ff",
-          },
-          headerTitleStyle: {
-            fontFamily: "DancingScript-Regular",
-            fontSize: 24,
-            color: "#81745dff",
-          },
-        }}
-      />
-      <Tab.Screen 
-        name="My Journals" 
-        component={MyJournalsScreen}
-        options={{
-          headerShown: true,
-          title: "My Journals",
-          headerStyle: {
-            backgroundColor: "#fff9f3ff",
-          },
-          headerTitleStyle: {
-            fontFamily: "DancingScript-Regular",
-            fontSize: 24,
-            color: "#81745dff",
-          },
-        }}
-      />
-      <Tab.Screen name="Streaks" component={StreaksScreen} />
-    </Tab.Navigator>
-  );
+function Tabs() {
+  return <Tab.Navigator screenOptions={({ route }) => ({
+    headerShown: false,
+    tabBarActiveTintColor: colors.brown,
+    tabBarInactiveTintColor: colors.muted,
+    tabBarStyle: { backgroundColor: colors.paper, borderTopColor: colors.line, height: 66, paddingTop: 5 },
+    tabBarLabelStyle: { fontFamily: fonts.body, fontSize: 11, fontWeight: '700', letterSpacing: 0.3, marginBottom: 6 },
+    tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? icons[route.name].replace('-outline', '') : icons[route.name]} color={color} size={21} />,
+  })}>
+    <Tab.Screen name="Today" component={HomeScreen} />
+    <Tab.Screen name="Diary" component={MyJournalsScreen} />
+    <Tab.Screen name="Vision" component={VisionBoardScreen} />
+    <Tab.Screen name="Streaks" component={StreaksScreen} />
+  </Tab.Navigator>;
 }
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    "DancingScript-Regular": require("./assets/DancingScript-Regular.ttf"),
-    "Lobster-Regular": require("./assets/Lobster-Regular.ttf"),
+  const [ready] = useFonts({
+    [fonts.display]: require('./assets/DancingScript-Regular.ttf'),
+    [fonts.accent]: require('./assets/Lobster-Regular.ttf'),
   });
-
-  if (!fontsLoaded) return null;
-
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {/* Bottom Tabs */}
-            <Stack.Screen name="Tabs" component={TabNavigator} />
-
-            {/* Hidden Screens */}
-            <Stack.Screen 
-              name="JournalDetail" 
-              component={JournalDetailScreen}
-              options={{
-                headerShown: true,
-                title: "Edit Journal",
-                headerBackTitleVisible: false,
-              }}
-            />
-
-            <Stack.Screen
-              name="EditJournal"
-              component={EditJournalScreen}
-              options={({ navigation, route }) => ({
-                headerShown: true,
-                title: "Edit Journal",
-                headerBackTitleVisible: false,
-                headerRight: () => (
-                  <Button
-                    onPress={() => {
-                      navigation.emit({
-                        type: "saveJournal",
-                        target: route.key,
-                      });
-                    }}
-                    title="Save"
-                    color="#81745dff"
-                  />
-                ),
-              })}
-            />
-          </Stack.Navigator>
-          <StatusBar style="auto" />
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
-  );
-} 
+  if (!ready) return null;
+  return <GestureHandlerRootView style={{ flex: 1 }}>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Tabs" component={Tabs} />
+          <Stack.Screen name="JournalDetail" component={JournalDetailScreen} />
+        </Stack.Navigator>
+        <StatusBar style="dark" />
+      </NavigationContainer>
+    </SafeAreaProvider>
+  </GestureHandlerRootView>;
+}
