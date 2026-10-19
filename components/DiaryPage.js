@@ -10,6 +10,7 @@ export default function DiaryPage({ entry, pageNumber, compact = false, editing 
   return (
     <View style={styles.page}>
       <View pointerEvents="none" style={styles.spine} />
+      <View pointerEvents="none" style={styles.pageEdge} />
       {paperStyle === 'ruled' && <View pointerEvents="none" style={styles.paperLines}>{Array.from({ length: 18 }, (_, index) => <View key={index} style={styles.paperLine} />)}</View>}
       <View style={styles.topRule} />
       <View style={styles.meta}>
@@ -23,7 +24,7 @@ export default function DiaryPage({ entry, pageNumber, compact = false, editing 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false} scrollEnabled={!compact}>
           <Text style={styles.entryText}>{entry.text || 'A fresh page for your thoughts.'}</Text>
           {!!entry.images?.length && <View style={styles.photos}>
-            {entry.images.map((uri, index) => <Image key={`${uri}-${index}`} source={{ uri }} style={styles.photo} />)}
+            {entry.images.map((uri, index) => <View key={`${uri}-${index}`} style={[styles.photoWrap, index % 2 === 1 && styles.photoTilt]}><Image source={{ uri }} style={styles.photo} /><View pointerEvents="none" style={styles.photoTape} /></View>)}
           </View>}
         </ScrollView>
       )}
@@ -39,6 +40,7 @@ export default function DiaryPage({ entry, pageNumber, compact = false, editing 
 const createStyles = colors => StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.paper, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, borderWidth: 1, borderColor: colors.paperEdge, paddingHorizontal: 27, paddingTop: 23, paddingBottom: 18, shadowColor: '#59483E', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 3, height: 8 }, elevation: 5, overflow: 'hidden' },
   spine: { position: 'absolute', top: 0, bottom: 0, left: 6, width: 7, backgroundColor: colors.spine, borderRightWidth: 1, borderRightColor: colors.paperEdge },
+  pageEdge: { position: 'absolute', top: 6, bottom: 10, right: 2, width: 3, backgroundColor: colors.line, opacity: 0.8, borderRadius: 2 },
   paperLines: { position: 'absolute', left: 26, right: 20, top: 184, bottom: 26, justifyContent: 'space-around', opacity: 0.42 },
   paperLine: { height: 1, backgroundColor: colors.line },
   topRule: { height: 4, width: 61, borderRadius: 2, backgroundColor: colors.rose, marginBottom: 18 },
@@ -51,8 +53,10 @@ const createStyles = colors => StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.line, marginTop: 16, marginBottom: 16 },
   body: { flex: 1 },
   entryText: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 30, minHeight: 80 },
-  photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 20 },
-  photo: { width: 112, height: 112, borderWidth: 5, borderColor: colors.white, borderRadius: 3, transform: [{ rotate: '-2deg' }] },
+  photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginTop: 25, paddingTop: 5 },
+  photoWrap: { transform: [{ rotate: '-3deg' }], shadowColor: colors.ink, shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 1, height: 4 }, elevation: 3 }, photoTilt: { transform: [{ rotate: '4deg' }] },
+  photo: { width: 112, height: 122, borderWidth: 5, borderBottomWidth: 13, borderColor: colors.white, borderRadius: 2 },
+  photoTape: { position: 'absolute', width: 43, height: 13, top: -6, left: 35, backgroundColor: colors.spine, opacity: 0.78, transform: [{ rotate: '2deg' }] },
   bottom: { marginTop: 16 },
   bottomRule: { height: 1, backgroundColor: colors.line },
   footer: { fontFamily: fonts.display, color: colors.muted, fontSize: 18, textAlign: 'right', marginTop: 9 },

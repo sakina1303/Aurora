@@ -177,8 +177,8 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity onPress={() => openDay(addDays(date, 1))} accessibilityRole="button" accessibilityLabel="Next diary day"><Text style={styles.dayNavText}>Tomorrow <Ionicons name="lock-closed-outline" size={12} color={colors.brown} /> →</Text></TouchableOpacity>
     </View>
     <View style={styles.actions}>
-      <Text style={styles.saveState}>{saved ? 'Your page is up to date' : 'Unsaved changes'}</Text>
-      <TouchableOpacity style={styles.saveButton} onPress={save} accessibilityRole="button"><Text style={styles.saveButtonText}>Save this page</Text></TouchableOpacity>
+      <View style={styles.saveStatus}><View style={[styles.statusDot, !saved && styles.statusDotDirty]} /><Text style={styles.saveState}>{saved ? 'Safely tucked away' : 'A little more to save'}</Text></View>
+      <TouchableOpacity style={styles.saveButton} onPress={save} accessibilityRole="button"><Ionicons name="bookmark-outline" size={17} color={colors.white} /><Text style={styles.saveButtonText}>Save this page</Text></TouchableOpacity>
     </View>
     <ThemePicker visible={themeOpen} onClose={() => setThemeOpen(false)} />
   </SafeAreaView>;
@@ -209,7 +209,8 @@ const createStyles = colors => StyleSheet.create({
   dayNavigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 19, paddingTop: 4 },
   dayNavText: { fontFamily: fonts.body, color: colors.brown, fontSize: 12, fontWeight: '700', paddingVertical: 8 },
   pageDots: { flexDirection: 'row', gap: 5, alignItems: 'center' }, pageDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#CCBFB4' }, pageDotCurrent: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brown },
-  saveState: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', fontSize: 11, marginBottom: 6 },
-  saveButton: { backgroundColor: colors.brown, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
+  saveStatus: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 7 }, statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.sage }, statusDotDirty: { backgroundColor: colors.rose },
+  saveState: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', fontSize: 11 },
+  saveButton: { backgroundColor: colors.brown, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9, paddingVertical: 14, shadowColor: colors.brown, shadowOpacity: 0.17, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   saveButtonText: { color: colors.white, fontFamily: fonts.accent, fontSize: 17 },
 });

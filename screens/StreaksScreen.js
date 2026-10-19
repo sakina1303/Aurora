@@ -63,6 +63,7 @@ export default function StreaksScreen() {
     setEditing(null);
   };
   const completedToday = habits.filter(item => (item.completedDates || []).includes(today)).length;
+  const progress = habits.length ? `${Math.round(completedToday / habits.length * 100)}%` : '0%';
   const week = Array.from({ length: 7 }, (_, offset) => addDays(today, offset - 6));
 
   return <SafeAreaView style={styles.screen}>
@@ -72,7 +73,7 @@ export default function StreaksScreen() {
       <Text style={styles.title}>My rituals</Text>
       <Text style={styles.intro}>A gentle record of showing up for yourself.</Text>
     </View>
-    <LinearGradient colors={[colors.summaryStart, colors.summaryMiddle, colors.summaryEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summary}><View style={styles.summaryIcon}><Ionicons name="sparkles" size={23} color={colors.brown} /></View><View style={{ flex: 1, marginLeft: 13 }}><Text style={styles.summaryTitle}>{completedToday} of {habits.length} complete</Text><Text style={styles.summarySub}>{habits.length ? 'Your little wins are adding up ♡' : 'Your journey starts with one little step.'}</Text></View></LinearGradient>
+    <LinearGradient colors={[colors.summaryStart, colors.summaryMiddle, colors.summaryEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summary}><View style={styles.summaryIcon}><Ionicons name="sparkles" size={23} color={colors.brown} /></View><View style={{ flex: 1, marginLeft: 13 }}><Text style={styles.summaryTitle}>{completedToday} of {habits.length} complete</Text><Text style={styles.summarySub}>{habits.length ? 'Your little wins are adding up ♡' : 'Your journey starts with one little step.'}</Text><View style={styles.progressTrack}><View style={[styles.progressFill, { width: progress }]} /></View></View></LinearGradient>
     <View style={styles.addRow}><TextInput style={styles.input} value={newName} onChangeText={setNewName} placeholder="A ritual to begin..." placeholderTextColor={colors.muted} returnKeyType="done" onSubmitEditing={add} maxLength={40} accessibilityLabel="New ritual name" /><TouchableOpacity style={styles.addButton} onPress={add} accessibilityLabel="Add ritual"><Ionicons name="add" size={23} color={colors.white} /></TouchableOpacity></View>
     <FlatList data={habits} keyExtractor={item => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<View style={styles.empty}><Ionicons name="leaf-outline" size={35} color={colors.sage} /><Text style={styles.emptyTitle}>Begin gently</Text><Text style={styles.emptyText}>Add a ritual above, then mark it when you do it today.</Text></View>} renderItem={({ item }) => {
       const dates = new Set(item.completedDates || []);
@@ -96,6 +97,7 @@ const createStyles = colors => StyleSheet.create({
   summary: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 20, borderRadius: 18, padding: 19, minHeight: 92, shadowColor: '#9C7C69', shadowOpacity: 0.12, shadowRadius: 10, elevation: 3 },
   summaryIcon: { width: 43, height: 43, borderRadius: 22, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
   summaryTitle: { fontFamily: fonts.accent, color: colors.ink, fontSize: 19 }, summarySub: { fontFamily: fonts.body, color: colors.brown, fontSize: 12, marginTop: 3 },
+  progressTrack: { height: 5, borderRadius: 3, backgroundColor: colors.paper, marginTop: 11, overflow: 'hidden' }, progressFill: { height: 5, borderRadius: 3, backgroundColor: colors.brown },
   addRow: { flexDirection: 'row', marginHorizontal: 20, marginTop: 18, gap: 9 },
   input: { flex: 1, fontFamily: fonts.body, backgroundColor: colors.paper, color: colors.ink, borderRadius: 12, borderColor: colors.line, borderWidth: 1, paddingHorizontal: 14, height: 48 },
   addButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brown, borderRadius: 12 },
