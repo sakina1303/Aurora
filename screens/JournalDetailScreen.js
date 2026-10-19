@@ -28,7 +28,6 @@ export default function JournalDetailScreen({ route, navigation }) {
     };
   }, [entries, today]);
   const entry = pageFor(selectedDate);
-  const access = dayAccess(selectedDate);
   const pageNumber = Number(selectedDate.slice(-2));
   const unchangedDraft = draft && entry && JSON.stringify(draft) === JSON.stringify({ ...entry, title: entry.isBlank ? '' : entry.title, text: entry.isBlank ? '' : entry.text, images: [...entry.images] });
 
@@ -117,12 +116,15 @@ export default function JournalDetailScreen({ route, navigation }) {
     } },
   ]);
   const addPhoto = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return Alert.alert('Photo permission needed', 'Allow access in your device settings.');
+    if (Platform.OS !== 'web') {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return Alert.alert('Photo permission needed', 'Allow access in your device settings.');
+    }
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web' });
       if (!result.canceled && result.assets?.[0]?.uri) {
-        const permanentUri = persistImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        const permanentUri = Platform.OS === 'web' && asset.base64 ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}` : persistImage(asset.uri);
         setDraft(current => ({ ...current, images: [...current.images, permanentUri] }));
       }
     } catch { Alert.alert('Could not add photo', 'Please try again.'); }
@@ -141,14 +143,13 @@ export default function JournalDetailScreen({ route, navigation }) {
         <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
           <TextInput value={draft.title} onChangeText={value => setDraft(current => ({ ...current, title: value }))} style={styles.titleInput} placeholder="Page title" placeholderTextColor={colors.muted} />
           <TextInput value={draft.text} onChangeText={value => setDraft(current => ({ ...current, text: value }))} style={styles.bodyInput} placeholder="Your thoughts..." placeholderTextColor={colors.muted} multiline textAlignVertical="top" />
-          <TouchableOpacity onPress={addPhoto}><Text style={styles.addPhoto}>+ Add photo</Text></TouchableOpacity>
+          <TouchableOpacity onPress={addPhoto} style={styles.photoPicker} accessibilityLabel="Choose a diary photo"><Ionicons name="images-outline" size={20} color={colors.brown} /><Text style={styles.addPhoto}>Add a photo to this page</Text></TouchableOpacity>
           <View style={styles.photos}>{draft.images.map((uri, photoIndex) => <View key={`${uri}-${photoIndex}`} style={styles.photoWrap}><Image source={{ uri }} style={styles.photo} /><TouchableOpacity style={styles.removePhoto} onPress={() => setDraft(current => ({ ...current, images: current.images.filter((_, i) => i !== photoIndex) }))}><Text>×</Text></TouchableOpacity></View>)}</View>
           {!entry.isBlank && <TouchableOpacity onPress={remove} style={styles.delete}><Text style={styles.deleteText}>Delete this page</Text></TouchableOpacity>}
         </ScrollView>
       </DiaryPage> : <ReaderPage entry={entry} pageNumber={pageNumber} />}
       {transition && <PageTurn direction={transition.direction} from={<ReaderPage entry={transition.from} pageNumber={Number(transition.from.date.slice(-2))} compact />} to={<ReaderPage entry={transition.to} pageNumber={Number(transition.to.date.slice(-2))} compact />} onFinished={() => { setSelectedDate(transition.nextDay); setTransition(null); }} />}
     </View>
-    {!editing && <Text style={styles.swipeHint}>{entry.isLocked ? `Opens at 12:00 AM · ${access.timeZone}` : selectedDate < today ? (entry.isBlank ? 'Tap Write to fill this previous day' : 'Tap Edit above to change this previous page') : 'Swipe right for previous · left for next day'}</Text>}
     {!editing && <View style={styles.navigation}>
       <TouchableOpacity onPress={() => turn(-1)} style={styles.turnButton} accessibilityLabel="Previous diary day"><Ionicons name="arrow-back" size={17} color={colors.brown} /><Text style={styles.turnText}>Previous</Text></TouchableOpacity>
       <Text style={styles.position}>{displayDate(selectedDate, { month: 'short', day: 'numeric' })}</Text>
@@ -184,14 +185,14 @@ const styles = StyleSheet.create({
   lockBody: { fontFamily: fonts.body, color: colors.muted, fontSize: 14, marginTop: 8, textAlign: 'center' },
   unlockTime: { fontFamily: fonts.body, color: colors.ink, fontWeight: '700', fontSize: 15, marginTop: 28 },
   lockZone: { fontFamily: fonts.body, color: colors.muted, fontSize: 12, marginTop: 5 },
-  swipeHint: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', fontSize: 11, paddingTop: 5 },
   navigation: { height: 58, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 18 },
   turnButton: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 9, minWidth: 90 },
   disabled: { opacity: 0.3 }, turnText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
   position: { fontFamily: fonts.body, color: colors.muted, fontSize: 12 },
   titleInput: { fontFamily: fonts.accent, fontSize: 20, color: colors.ink, paddingVertical: 7 },
-  bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 26, minHeight: 250, paddingTop: 12 },
-  addPhoto: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', paddingVertical: 14 },
+  bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 28, minHeight: 170, paddingTop: 12 },
+  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: '#D7B9AA', borderRadius: 10, backgroundColor: '#F8F0E8' },
+  addPhoto: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 12 },
   photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, photoWrap: { position: 'relative' },
   photo: { width: 90, height: 90, borderRadius: 5 },
   removePhoto: { position: 'absolute', right: 2, top: 2, borderRadius: 12, backgroundColor: colors.paper, width: 24, height: 24, alignItems: 'center' },

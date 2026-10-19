@@ -6,9 +6,11 @@ import { displayDate } from '../lib/diary';
 export default function DiaryPage({ entry, pageNumber, compact = false, editing = false, children }) {
   return (
     <View style={styles.page}>
+      <View pointerEvents="none" style={styles.spine} />
+      <View pointerEvents="none" style={styles.paperLines}>{Array.from({ length: 18 }, (_, index) => <View key={index} style={styles.paperLine} />)}</View>
       <View style={styles.topRule} />
       <View style={styles.meta}>
-        <Text style={styles.eyebrow}>AURORA • MY DIARY</Text>
+        <Text style={styles.eyebrow}>AURORA  /  MY DIARY</Text>
         <Text style={styles.pageNumber}>{String(pageNumber).padStart(2, '0')}</Text>
       </View>
       <Text style={styles.date}>{displayDate(entry.date)}</Text>
@@ -24,7 +26,7 @@ export default function DiaryPage({ entry, pageNumber, compact = false, editing 
       )}
       <View style={styles.bottom}>
         <View style={styles.bottomRule} />
-        <Text style={styles.footer}>a little moment, kept forever</Text>
+        <Text style={styles.footer}>a little moment, kept forever ♡</Text>
       </View>
       <View style={styles.corner} />
     </View>
@@ -32,18 +34,21 @@ export default function DiaryPage({ entry, pageNumber, compact = false, editing 
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.paper, borderRadius: 12, borderWidth: 1, borderColor: colors.paperEdge, padding: 22, shadowColor: '#59483E', shadowOpacity: 0.13, shadowRadius: 12, shadowOffset: { width: 1, height: 6 }, elevation: 4, overflow: 'hidden' },
-  topRule: { height: 3, width: 55, borderRadius: 2, backgroundColor: colors.rose, marginBottom: 20 },
+  page: { flex: 1, backgroundColor: colors.paper, borderTopRightRadius: 16, borderBottomRightRadius: 16, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, borderWidth: 1, borderColor: colors.paperEdge, paddingHorizontal: 27, paddingTop: 23, paddingBottom: 18, shadowColor: '#59483E', shadowOpacity: 0.18, shadowRadius: 16, shadowOffset: { width: 3, height: 8 }, elevation: 5, overflow: 'hidden' },
+  spine: { position: 'absolute', top: 0, bottom: 0, left: 6, width: 7, backgroundColor: '#E9DDCD', borderRightWidth: 1, borderRightColor: '#D7C7B8' },
+  paperLines: { position: 'absolute', left: 26, right: 20, top: 184, bottom: 26, justifyContent: 'space-around', opacity: 0.42 },
+  paperLine: { height: 1, backgroundColor: '#E9DDD1' },
+  topRule: { height: 4, width: 61, borderRadius: 2, backgroundColor: colors.rose, marginBottom: 18 },
   meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   eyebrow: { fontFamily: fonts.body, fontSize: 10, letterSpacing: 2.3, color: colors.muted, fontWeight: '700' },
   pageNumber: { fontFamily: fonts.body, fontSize: 11, letterSpacing: 1, color: colors.muted },
-  date: { fontFamily: fonts.display, fontSize: 23, color: colors.brown, marginTop: 17 },
-  title: { fontFamily: fonts.accent, color: colors.ink, fontSize: 29, marginTop: 3 },
+  date: { fontFamily: fonts.display, fontSize: 27, color: colors.brown, marginTop: 16 },
+  title: { fontFamily: fonts.accent, color: colors.ink, fontSize: 31, marginTop: 4 },
   divider: { height: 1, backgroundColor: colors.line, marginTop: 16, marginBottom: 16 },
   body: { flex: 1 },
-  entryText: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 27, minHeight: 80 },
+  entryText: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 30, minHeight: 80 },
   photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, marginTop: 20 },
-  photo: { width: 100, height: 100, borderRadius: 5 },
+  photo: { width: 112, height: 112, borderWidth: 5, borderColor: colors.white, borderRadius: 3, transform: [{ rotate: '-2deg' }] },
   bottom: { marginTop: 16 },
   bottomRule: { height: 1, backgroundColor: colors.line },
   footer: { fontFamily: fonts.display, color: colors.muted, fontSize: 18, textAlign: 'right', marginTop: 9 },

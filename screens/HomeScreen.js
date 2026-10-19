@@ -3,6 +3,7 @@ import { Alert, Image, KeyboardAvoidingView, PanResponder, Platform, ScrollView,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import DiaryPage from '../components/DiaryPage';
 import PageTurn from '../components/PageTurn';
 import { addDays, dayAccess, listJournals, saveJournal } from '../lib/diary';
@@ -106,17 +107,20 @@ export default function HomeScreen({ navigation }) {
     : entries.find(item => item.date === turnTarget) || { date: turnTarget, title: 'An unwritten day', text: 'A fresh page for your thoughts.', images: [] });
 
   const addPhoto = async (camera) => {
-    const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Photo permission needed', 'Allow access in your device settings to add a photo.');
-      return;
+    if (Platform.OS !== 'web') {
+      const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Photo permission needed', 'Allow access in your device settings to add a photo.');
+        return;
+      }
     }
     try {
       const result = camera
         ? await ImagePicker.launchCameraAsync({ quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web' });
       if (!result.canceled && result.assets?.[0]?.uri) {
-        const permanentUri = persistImage(result.assets[0].uri);
+        const asset = result.assets[0];
+        const permanentUri = Platform.OS === 'web' && asset.base64 ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}` : persistImage(asset.uri);
         setImages(current => [...current, permanentUri]);
         markDirty();
       }
@@ -135,14 +139,8 @@ export default function HomeScreen({ navigation }) {
         <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TextInput style={styles.titleInput} placeholder="Give this day a title..." placeholderTextColor={colors.muted} value={title} onChangeText={value => { setTitle(value); markDirty(); }} maxLength={80} accessibilityLabel="Journal title" />
           <TextInput style={styles.bodyInput} placeholder="Dear diary, today..." placeholderTextColor={colors.muted} value={text} onChangeText={value => { setText(value); markDirty(); }} multiline textAlignVertical="top" accessibilityLabel="Journal entry" />
-          <View style={styles.photoHeader}>
-            <Text style={styles.sectionLabel}>MOMENTS TO KEEP</Text>
-            <TouchableOpacity onPress={() => Alert.alert('Add a photo', 'Choose a source', [
-              { text: 'Camera', onPress: () => addPhoto(true) },
-              { text: 'Photo library', onPress: () => addPhoto(false) },
-              { text: 'Cancel', style: 'cancel' },
-            ])}><Text style={styles.addPhoto}>+ Add photo</Text></TouchableOpacity>
-          </View>
+          <View style={styles.photoHeader}><Text style={styles.sectionLabel}>LITTLE MOMENTS</Text>{Platform.OS !== 'web' && <TouchableOpacity onPress={() => addPhoto(true)} accessibilityLabel="Take a photo" style={styles.cameraButton}><Ionicons name="camera-outline" size={19} color={colors.brown} /></TouchableOpacity>}</View>
+          <TouchableOpacity onPress={() => addPhoto(false)} accessibilityRole="button" accessibilityLabel="Choose a diary photo" style={styles.photoPicker}><Ionicons name="images-outline" size={22} color={colors.brown} /><View style={{ flex: 1 }}><Text style={styles.photoPickerTitle}>{images.length ? 'Add another memory' : 'Add a photo to this day'}</Text><Text style={styles.photoPickerSub}>A little picture makes the page yours</Text></View><Ionicons name="add" size={20} color={colors.brown} /></TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
             {images.map((uri, index) => <View key={`${uri}-${index}`} style={styles.photoWrap}>
               <Image source={{ uri }} style={styles.photo} />
@@ -156,8 +154,8 @@ export default function HomeScreen({ navigation }) {
     </KeyboardAvoidingView>
     <View style={styles.dayNavigation}>
       <TouchableOpacity onPress={() => openDay(addDays(date, -1))} accessibilityRole="button" accessibilityLabel="Previous diary day"><Text style={styles.dayNavText}>← Previous day</Text></TouchableOpacity>
-      <Text style={styles.dayHint}>Swipe pages to move by day</Text>
-      <TouchableOpacity onPress={() => openDay(addDays(date, 1))} accessibilityRole="button" accessibilityLabel="Next diary day"><Text style={styles.dayNavText}>Next day →</Text></TouchableOpacity>
+      <View style={styles.pageDots}><View style={styles.pageDot} /><View style={[styles.pageDot, styles.pageDotCurrent]} /><View style={styles.pageDot} /></View>
+      <TouchableOpacity onPress={() => openDay(addDays(date, 1))} accessibilityRole="button" accessibilityLabel="Next diary day"><Text style={styles.dayNavText}>Tomorrow <Ionicons name="lock-closed-outline" size={12} color={colors.brown} /> →</Text></TouchableOpacity>
     </View>
     <View style={styles.actions}>
       <Text style={styles.saveState}>{saved ? 'Your page is up to date' : 'Unsaved changes'}</Text>
@@ -174,16 +172,19 @@ const styles = StyleSheet.create({
   headerButton: { padding: 10 }, headerButtonText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
   content: { flex: 1, marginHorizontal: 17, marginBottom: 5 },
   titleInput: { fontFamily: fonts.accent, fontSize: 20, color: colors.ink, paddingVertical: 7 },
-  bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 26, minHeight: 245, paddingTop: 13 },
+  bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 28, minHeight: 150, paddingTop: 13 },
   photoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: colors.line, paddingTop: 16 },
   sectionLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.6 },
-  addPhoto: { fontFamily: fonts.body, color: colors.brown, fontSize: 13, fontWeight: '700' },
-  photoWrap: { marginRight: 10 }, photo: { width: 95, height: 95, borderRadius: 5 },
+  cameraButton: { padding: 4 },
+  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: '#D7B9AA', borderRadius: 11, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: '#F8F0E8', marginTop: 12 },
+  photoPickerTitle: { fontFamily: fonts.body, color: colors.ink, fontSize: 12, fontWeight: '700' },
+  photoPickerSub: { fontFamily: fonts.body, color: colors.muted, fontSize: 10, marginTop: 2 },
+  photoWrap: { marginRight: 10 }, photo: { width: 95, height: 105, borderWidth: 5, borderColor: colors.white, borderRadius: 3 },
   remove: { position: 'absolute', right: 3, top: 3, backgroundColor: colors.paper, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   actions: { paddingHorizontal: 20, paddingTop: 7, paddingBottom: 8 },
   dayNavigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 19, paddingTop: 4 },
   dayNavText: { fontFamily: fonts.body, color: colors.brown, fontSize: 12, fontWeight: '700', paddingVertical: 8 },
-  dayHint: { fontFamily: fonts.body, color: colors.muted, fontSize: 10 },
+  pageDots: { flexDirection: 'row', gap: 5, alignItems: 'center' }, pageDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#CCBFB4' }, pageDotCurrent: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.brown },
   saveState: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', fontSize: 11, marginBottom: 6 },
   saveButton: { backgroundColor: colors.brown, borderRadius: 14, alignItems: 'center', paddingVertical: 14 },
   saveButtonText: { color: colors.white, fontFamily: fonts.accent, fontSize: 17 },

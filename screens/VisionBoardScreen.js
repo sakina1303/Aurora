@@ -78,23 +78,28 @@ export default function VisionBoardScreen({ route, navigation }) {
   const chooseKind = kind => { setSelected(kind); setPeriod(periodKey(kind, today)); };
   const addItem = (type, uri = '') => {
     const count = items.length;
-    const width = type === 'image' ? 115 : 155;
-    const height = type === 'image' ? 125 : 85;
-    const columnWidth = 170;
-    const rowHeight = 145;
+    const width = type === 'image' ? 142 : 185;
+    const height = type === 'image' ? 158 : 112;
+    const columnWidth = 205;
+    const rowHeight = 180;
     const columns = Math.max(1, Math.floor((bounds.width - 30) / columnWidth));
-    const x = Math.min(22 + (count % columns) * columnWidth, Math.max(0, bounds.width - width));
-    const y = Math.min(34 + Math.floor(count / columns) * rowHeight, Math.max(0, bounds.height - height));
+    const x = Math.max(0, Math.min(Math.floor((bounds.width - columns * columnWidth) / 2) + (count % columns) * columnWidth + 10, bounds.width - width));
+    const y = Math.min(72 + Math.floor(count / columns) * rowHeight, Math.max(0, bounds.height - height));
     const item = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, type, uri, text: '', done: false, x, y, width, height };
     if (type === 'text') { setEditing({ ...item, isNew: true }); setNoteText(''); }
     else updateSelected([...items, item]);
   };
   const addImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return Alert.alert('Photo permission needed', 'Allow photo access in your device settings.');
+    if (Platform.OS !== 'web') {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return Alert.alert('Photo permission needed', 'Allow photo access in your device settings.');
+    }
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-      if (!result.canceled && result.assets?.[0]?.uri) addItem('image', Platform.OS === 'web' ? result.assets[0].uri : persistImage(result.assets[0].uri));
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web' });
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        const asset = result.assets[0];
+        addItem('image', Platform.OS === 'web' && asset.base64 ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}` : persistImage(asset.uri));
+      }
     } catch { Alert.alert('Could not add image', 'Please try again.'); }
   };
   const openItem = item => {
@@ -132,8 +137,8 @@ export default function VisionBoardScreen({ route, navigation }) {
       <TouchableOpacity onPress={() => next && setPeriod(next)} disabled={!next} accessibilityRole="button" accessibilityLabel="Next vision board" style={[styles.periodArrow, !next && styles.faded]}><Ionicons name="chevron-forward" size={18} color={colors.brown} /></TouchableOpacity>
     </View>
     <View style={styles.canvasOuter}><View style={styles.canvas} onLayout={event => setBounds({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
-      <Text style={styles.canvasLabel}>{selected.toUpperCase()} INTENTIONS · {period}</Text>
-      {!items.length && <View style={styles.empty}><Ionicons name="sparkles-outline" size={36} color={colors.rose} /><Text style={styles.emptyTitle}>Start with a thought</Text><Text style={styles.emptyText}>Add a note or image, then drag it anywhere on your board.</Text></View>}
+      <View pointerEvents="none" style={styles.canvasRule} /><Text style={styles.canvasLabel}>{selected.toUpperCase()} INTENTIONS · {period}</Text>
+      {!items.length && <View style={styles.empty}><View style={styles.emptySeal}><Ionicons name="sparkles-outline" size={30} color={colors.brown} /></View><Text style={styles.emptyTitle}>The beginning of anything</Text><Text style={styles.emptyText}>A space for the wishes you're ready to grow.</Text></View>}
       {items.map(item => <BoardItem key={item.id} item={item} bounds={bounds} onMove={move} onPress={openItem} onToggle={toggle} />)}
     </View></View>
     <TouchableOpacity onPress={() => navigation.navigate('Diary')} style={styles.historyLink} accessibilityRole="button" accessibilityLabel="Open vision board history"><Ionicons name="albums-outline" size={16} color={colors.brown} /><Text style={styles.historyText}>Past boards live in Diary history</Text><Ionicons name="arrow-forward" size={15} color={colors.brown} /></TouchableOpacity>
@@ -154,8 +159,8 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', backgroundColor: '#EEE7DD', borderRadius: 12, padding: 4, marginHorizontal: 20, marginTop: 16 }, tab: { flex: 1, alignItems: 'center', padding: 9, borderRadius: 9 }, tabActive: { backgroundColor: colors.paper }, tabText: { color: colors.muted, fontFamily: fonts.body, fontWeight: '700', fontSize: 13 }, tabTextActive: { color: colors.brown },
   periodBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 14, paddingHorizontal: 8 }, periodArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, periodMiddle: { flex: 1, alignItems: 'center' }, periodName: { fontFamily: fonts.accent, color: colors.brown, fontSize: 20 }, periodSummary: { fontFamily: fonts.body, color: colors.muted, fontSize: 11, marginTop: 2 }, faded: { opacity: 0.32 },
   canvasOuter: { flex: 1, marginHorizontal: 20, marginTop: 13, marginBottom: 8, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paperEdge, borderRadius: 12, shadowColor: '#59483E', shadowOpacity: 0.1, shadowRadius: 8, elevation: 3, overflow: 'hidden' },
-  canvas: { flex: 1 }, canvasLabel: { position: 'absolute', top: 14, left: 17, fontFamily: fonts.body, fontSize: 10, letterSpacing: 1.5, color: colors.muted },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 35 }, emptyTitle: { fontFamily: fonts.display, fontSize: 29, color: colors.brown, marginTop: 10 }, emptyText: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 20, marginTop: 6 },
+  canvas: { flex: 1, backgroundColor: '#FFF9F2' }, canvasRule: { position: 'absolute', top: 44, left: 17, right: 17, height: 1, backgroundColor: colors.line }, canvasLabel: { position: 'absolute', top: 15, left: 17, fontFamily: fonts.body, fontSize: 10, letterSpacing: 1.5, color: colors.muted },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }, emptySeal: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F5E9DE', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.paperEdge }, emptyTitle: { fontFamily: fonts.display, fontSize: 29, color: colors.brown, marginTop: 17, textAlign: 'center' }, emptyText: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 20, marginTop: 6 },
   item: { position: 'absolute', shadowColor: '#463B33', shadowOpacity: 0.16, shadowRadius: 5, shadowOffset: { width: 1, height: 3 }, elevation: 3 }, imageFrame: { flex: 1, position: 'relative' }, boardImage: { width: '100%', height: '100%', borderWidth: 5, borderColor: colors.white, borderRadius: 4 }, imageDoneOverlay: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 2 }, note: { flex: 1, padding: 12, justifyContent: 'center', borderRadius: 5, transform: [{ rotate: '-2deg' }] }, noteText: { fontFamily: fonts.display, fontSize: 20, textAlign: 'center', color: colors.ink }, checkButton: { position: 'absolute', right: -7, top: -7, width: 31, height: 31, borderRadius: 16, backgroundColor: colors.paper, borderColor: colors.paperEdge, borderWidth: 1, alignItems: 'center', justifyContent: 'center', elevation: 5 }, checkButtonDone: { backgroundColor: '#6F9D79', borderColor: '#6F9D79' }, movedTag: { position: 'absolute', bottom: 4, left: 5, color: colors.brown, backgroundColor: '#FFF9ECCC', fontFamily: fonts.body, fontSize: 8, letterSpacing: 1, paddingHorizontal: 5 },
   historyLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginHorizontal: 20, paddingVertical: 7 }, historyText: { color: colors.brown, fontFamily: fonts.body, fontSize: 12 },
   actions: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, gap: 10 }, action: { flex: 1, flexDirection: 'row', gap: 7, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EDE3D7', borderRadius: 11, height: 47 }, imageAction: { backgroundColor: colors.brown }, actionText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
