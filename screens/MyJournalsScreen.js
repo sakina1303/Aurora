@@ -5,9 +5,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { displayDate, listJournals, localDay } from '../lib/diary';
 import { boardHistory, loadVision } from '../lib/vision';
-import { colors, fonts } from '../theme';
+import { moodFor } from '../lib/moods';
+import { fonts, useTheme } from '../theme';
 
 export default function MyJournalsScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [entries, setEntries] = useState([]);
   const [visionHistory, setVisionHistory] = useState([]);
   const [query, setQuery] = useState('');
@@ -26,7 +29,7 @@ export default function MyJournalsScreen({ navigation }) {
       <Text style={styles.intro}>{entries.length} {entries.length === 1 ? 'page' : 'pages'} of moments worth keeping</Text>
       <TouchableOpacity style={styles.bookButton} onPress={() => navigation.navigate('JournalDetail', { date: localDay() })} accessibilityRole="button" accessibilityLabel="Read as a diary">
         <Ionicons name="book-outline" size={21} color={colors.white} />
-        <View style={styles.bookCopy}><Text style={styles.bookTitle}>Read as a diary</Text><Text style={styles.bookSubtitle}>Swipe through the days, page by page</Text></View>
+        <View style={styles.bookCopy}><Text style={styles.bookTitle}>Read as a diary</Text><Text style={styles.bookSubtitle}>Every day has its own page</Text></View>
         <Ionicons name="arrow-forward" size={19} color={colors.white} />
       </TouchableOpacity>
       <View style={styles.search}><Ionicons name="search-outline" size={18} color={colors.muted} /><TextInput value={query} onChangeText={setQuery} placeholder="Find a moment..." placeholderTextColor={colors.muted} style={styles.searchInput} accessibilityLabel="Search diary" /></View>
@@ -36,7 +39,7 @@ export default function MyJournalsScreen({ navigation }) {
         <View style={styles.cardTop}><Text style={styles.date}>{displayDate(item.date, { month: 'short', day: 'numeric', year: 'numeric' })}</Text><Text style={styles.number}>NO. {String(entries.length - entries.indexOf(item)).padStart(2, '0')}</Text></View>
         <Text style={styles.cardTitle} numberOfLines={1}>{item.title || 'Untitled day'}</Text>
         <Text style={styles.preview} numberOfLines={2}>{item.text}</Text>
-        <View style={styles.cardBottom}><Text style={styles.photos}>{item.images.length ? `${item.images.length} photo${item.images.length === 1 ? '' : 's'}` : 'A written moment'}</Text><Ionicons name="arrow-forward" size={18} color={colors.brown} /></View>
+        <View style={styles.cardBottom}><Text style={styles.photos}>{item.images.length ? `${item.images.length} photo${item.images.length === 1 ? '' : 's'}` : 'A written moment'}</Text><View style={styles.cardEnd}>{!!moodFor(item.mood) && <Text style={styles.cardMood}>{moodFor(item.mood).symbol} {moodFor(item.mood).label}</Text>}<Ionicons name="arrow-forward" size={18} color={colors.brown} /></View></View>
       </TouchableOpacity>} ListEmptyComponent={<View style={styles.empty}>
         <Ionicons name={query ? 'search-outline' : 'book-outline'} size={36} color={colors.rose} />
         <Text style={styles.emptyTitle}>{query ? 'No pages found' : 'Your diary begins here'}</Text>
@@ -54,7 +57,7 @@ export default function MyJournalsScreen({ navigation }) {
   </SafeAreaView>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = colors => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: { paddingHorizontal: 24, paddingTop: 14 },
   kicker: { fontFamily: fonts.body, color: colors.muted, letterSpacing: 2.2, fontSize: 10, fontWeight: '700' },
@@ -74,6 +77,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.ink, fontFamily: fonts.accent, fontSize: 23, marginTop: 10 },
   preview: { fontFamily: fonts.body, color: colors.muted, fontSize: 14, lineHeight: 20, marginTop: 7 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: colors.line, marginTop: 15, paddingTop: 12 },
+  cardEnd: { flexDirection: 'row', alignItems: 'center', gap: 10 }, cardMood: { fontFamily: fonts.body, color: colors.brown, fontSize: 10 },
   photos: { fontFamily: fonts.body, color: colors.muted, fontSize: 11 },
   empty: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 38, paddingVertical: 44 },
   emptyTitle: { fontFamily: fonts.display, fontSize: 30, color: colors.brown, marginTop: 15 },
@@ -84,7 +88,7 @@ const styles = StyleSheet.create({
   archiveKicker: { color: colors.muted, fontFamily: fonts.body, letterSpacing: 1.8, fontSize: 10, fontWeight: '700' },
   archiveTitle: { color: colors.brown, fontFamily: fonts.display, fontSize: 30, marginTop: 3, marginBottom: 12 },
   historyCard: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paperEdge, borderRadius: 12, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  historyIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#EEE7DB', alignItems: 'center', justifyContent: 'center' },
+  historyIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
   historyName: { color: colors.ink, fontFamily: fonts.accent, fontSize: 18 },
   historyMeta: { color: colors.muted, fontFamily: fonts.body, fontSize: 11, marginTop: 2 },
   historyEmpty: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paperEdge, borderRadius: 12, padding: 17 },

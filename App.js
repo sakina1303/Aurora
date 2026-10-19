@@ -12,13 +12,14 @@ import VisionBoardScreen from './screens/VisionBoardScreen';
 import MyJournalsScreen from './screens/MyJournalsScreen';
 import StreaksScreen from './screens/StreaksScreen';
 import JournalDetailScreen from './screens/JournalDetailScreen';
-import { colors, fonts } from './theme';
+import { fonts, ThemeProvider, useTheme } from './theme';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 const icons = { Today: 'book-outline', Diary: 'albums-outline', Vision: 'sparkles-outline', Streaks: 'flame-outline' };
 
 function Tabs() {
+  const { colors } = useTheme();
   return <Tab.Navigator screenOptions={({ route }) => ({
     headerShown: false,
     tabBarActiveTintColor: colors.brown,
@@ -41,7 +42,7 @@ export default function App() {
   });
   if (!ready) return null;
   return <GestureHandlerRootView style={{ flex: 1 }}>
-    <SafeAreaProvider>
+    <ThemeProvider><SafeAreaProvider>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Tabs" component={Tabs} />
@@ -49,6 +50,6 @@ export default function App() {
         </Stack.Navigator>
         <StatusBar style="dark" />
       </NavigationContainer>
-    </SafeAreaProvider>
+    </SafeAreaProvider></ThemeProvider>
   </GestureHandlerRootView>;
 }

@@ -8,9 +8,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { boardItems, emptyVision, loadVision, nextPeriodKey, periodKey, periodLabel, saveVision } from '../lib/vision';
 import useLocalDay from '../lib/useLocalDay';
 import { persistImage } from '../lib/media';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme } from '../theme';
 
 function BoardItem({ item, bounds, onMove, onPress, onToggle }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const pan = useRef(new Animated.ValueXY()).current;
   const responder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => false,
@@ -26,7 +28,7 @@ function BoardItem({ item, bounds, onMove, onPress, onToggle }) {
   }), [item.id, item.x, item.y, item.width, item.height, bounds.width, bounds.height, onMove, pan]);
   return <Animated.View {...responder.panHandlers} style={[styles.item, { left: item.x, top: item.y, width: item.width, height: item.height, transform: pan.getTranslateTransform() }]}>
     <TouchableOpacity onPress={() => onPress(item)} activeOpacity={0.9} style={{ flex: 1 }} accessibilityRole="button" accessibilityLabel={item.type === 'image' ? 'Board photo options' : 'Edit board note'}>
-      {item.type === 'image' ? <View style={styles.imageFrame}><Image source={{ uri: item.uri }} style={styles.boardImage} />{item.done && <LinearGradient colors={['#EAF5E566', '#9BC9A48C']} style={styles.imageDoneOverlay} />}</View> : <LinearGradient colors={item.done ? ['#EDF7E8', '#D5EACC', '#B8D8BA'] : ['#FAEEDD', '#F5E1D0']} style={styles.note}><Text style={styles.noteText}>{item.text || 'Tap to write a thought'}</Text></LinearGradient>}
+      {item.type === 'image' ? <View style={styles.imageFrame}><Image source={{ uri: item.uri }} style={styles.boardImage} />{item.done && <LinearGradient colors={['#EAF5E566', '#9BC9A48C']} style={styles.imageDoneOverlay} />}</View> : <LinearGradient colors={item.done ? ['#EDF7E8', '#D5EACC', '#B8D8BA'] : [colors.noteStart, colors.noteEnd]} style={styles.note}><Text style={styles.noteText}>{item.text || 'Tap to write a thought'}</Text></LinearGradient>}
     </TouchableOpacity>
     <TouchableOpacity onPress={() => onToggle(item.id)} style={[styles.checkButton, item.done && styles.checkButtonDone]} accessibilityRole="button" accessibilityLabel={item.done ? 'Mark intention pending' : 'Mark intention done'}><Ionicons name={item.done ? 'checkmark' : 'ellipse-outline'} size={17} color={item.done ? colors.white : colors.brown} /></TouchableOpacity>
     {item.movedTo && !item.done && <Text style={styles.movedTag}>MOVED</Text>}
@@ -34,6 +36,8 @@ function BoardItem({ item, bounds, onMove, onPress, onToggle }) {
 }
 
 export default function VisionBoardScreen({ route, navigation }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const today = useLocalDay();
   const [selected, setSelected] = useState('Monthly');
   const [period, setPeriod] = useState(periodKey('Monthly', today));
@@ -153,16 +157,16 @@ export default function VisionBoardScreen({ route, navigation }) {
   </SafeAreaView>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = colors => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas }, header: { paddingHorizontal: 24, paddingTop: 14 },
   kicker: { fontFamily: fonts.body, color: colors.muted, letterSpacing: 2.2, fontSize: 10, fontWeight: '700' }, title: { fontFamily: fonts.display, fontSize: 43, color: colors.brown, marginTop: 4 }, intro: { fontFamily: fonts.body, color: colors.muted, fontSize: 13 },
-  tabs: { flexDirection: 'row', backgroundColor: '#EEE7DD', borderRadius: 12, padding: 4, marginHorizontal: 20, marginTop: 16 }, tab: { flex: 1, alignItems: 'center', padding: 9, borderRadius: 9 }, tabActive: { backgroundColor: colors.paper }, tabText: { color: colors.muted, fontFamily: fonts.body, fontWeight: '700', fontSize: 13 }, tabTextActive: { color: colors.brown },
+  tabs: { flexDirection: 'row', backgroundColor: colors.soft, borderRadius: 12, padding: 4, marginHorizontal: 20, marginTop: 16 }, tab: { flex: 1, alignItems: 'center', padding: 9, borderRadius: 9 }, tabActive: { backgroundColor: colors.paper }, tabText: { color: colors.muted, fontFamily: fonts.body, fontWeight: '700', fontSize: 13 }, tabTextActive: { color: colors.brown },
   periodBar: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 14, paddingHorizontal: 8 }, periodArrow: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, periodMiddle: { flex: 1, alignItems: 'center' }, periodName: { fontFamily: fonts.accent, color: colors.brown, fontSize: 20 }, periodSummary: { fontFamily: fonts.body, color: colors.muted, fontSize: 11, marginTop: 2 }, faded: { opacity: 0.32 },
   canvasOuter: { flex: 1, marginHorizontal: 20, marginTop: 13, marginBottom: 8, backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.paperEdge, borderRadius: 12, shadowColor: '#59483E', shadowOpacity: 0.1, shadowRadius: 8, elevation: 3, overflow: 'hidden' },
-  canvas: { flex: 1, backgroundColor: '#FFF9F2' }, canvasRule: { position: 'absolute', top: 44, left: 17, right: 17, height: 1, backgroundColor: colors.line }, canvasLabel: { position: 'absolute', top: 15, left: 17, fontFamily: fonts.body, fontSize: 10, letterSpacing: 1.5, color: colors.muted },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }, emptySeal: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F5E9DE', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.paperEdge }, emptyTitle: { fontFamily: fonts.display, fontSize: 29, color: colors.brown, marginTop: 17, textAlign: 'center' }, emptyText: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 20, marginTop: 6 },
+  canvas: { flex: 1, backgroundColor: colors.paper }, canvasRule: { position: 'absolute', top: 44, left: 17, right: 17, height: 1, backgroundColor: colors.line }, canvasLabel: { position: 'absolute', top: 15, left: 17, fontFamily: fonts.body, fontSize: 10, letterSpacing: 1.5, color: colors.muted },
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 30 }, emptySeal: { width: 70, height: 70, borderRadius: 35, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.paperEdge }, emptyTitle: { fontFamily: fonts.display, fontSize: 29, color: colors.brown, marginTop: 17, textAlign: 'center' }, emptyText: { fontFamily: fonts.body, color: colors.muted, fontSize: 13, textAlign: 'center', lineHeight: 20, marginTop: 6 },
   item: { position: 'absolute', shadowColor: '#463B33', shadowOpacity: 0.16, shadowRadius: 5, shadowOffset: { width: 1, height: 3 }, elevation: 3 }, imageFrame: { flex: 1, position: 'relative' }, boardImage: { width: '100%', height: '100%', borderWidth: 5, borderColor: colors.white, borderRadius: 4 }, imageDoneOverlay: { position: 'absolute', top: 5, left: 5, right: 5, bottom: 5, borderRadius: 2 }, note: { flex: 1, padding: 12, justifyContent: 'center', borderRadius: 5, transform: [{ rotate: '-2deg' }] }, noteText: { fontFamily: fonts.display, fontSize: 20, textAlign: 'center', color: colors.ink }, checkButton: { position: 'absolute', right: -7, top: -7, width: 31, height: 31, borderRadius: 16, backgroundColor: colors.paper, borderColor: colors.paperEdge, borderWidth: 1, alignItems: 'center', justifyContent: 'center', elevation: 5 }, checkButtonDone: { backgroundColor: '#6F9D79', borderColor: '#6F9D79' }, movedTag: { position: 'absolute', bottom: 4, left: 5, color: colors.brown, backgroundColor: '#FFF9ECCC', fontFamily: fonts.body, fontSize: 8, letterSpacing: 1, paddingHorizontal: 5 },
   historyLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginHorizontal: 20, paddingVertical: 7 }, historyText: { color: colors.brown, fontFamily: fonts.body, fontSize: 12 },
-  actions: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, gap: 10 }, action: { flex: 1, flexDirection: 'row', gap: 7, justifyContent: 'center', alignItems: 'center', backgroundColor: '#EDE3D7', borderRadius: 11, height: 47 }, imageAction: { backgroundColor: colors.brown }, actionText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
+  actions: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 10, gap: 10 }, action: { flex: 1, flexDirection: 'row', gap: 7, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.soft, borderRadius: 11, height: 47 }, imageAction: { backgroundColor: colors.brown }, actionText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
   modalShade: { flex: 1, backgroundColor: '#0007', justifyContent: 'center', padding: 25 }, modal: { backgroundColor: colors.paper, borderRadius: 16, padding: 21 }, modalTitle: { fontFamily: fonts.display, fontSize: 29, color: colors.brown }, modalInput: { color: colors.ink, fontFamily: fonts.body, borderWidth: 1, borderColor: colors.line, borderRadius: 10, padding: 12, minHeight: 110, textAlignVertical: 'top', marginTop: 13 }, modalPhoto: { width: '100%', height: 190, borderRadius: 8, marginTop: 13 }, modalTools: { gap: 9, marginTop: 16 }, toolButton: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 9, borderWidth: 1, borderColor: colors.line, padding: 10 }, toolDone: { backgroundColor: '#E7F2E3' }, toolText: { color: colors.brown, fontFamily: fonts.body, fontSize: 13 }, confirmPrompt: { color: '#A05E5B', fontFamily: fonts.body, fontSize: 12, marginTop: 14 }, modalActions: { flexDirection: 'row', gap: 20, marginTop: 20 }, deleteText: { color: '#A05E5B', fontFamily: fonts.body, fontWeight: '700' }, cancelText: { color: colors.muted, fontFamily: fonts.body, fontWeight: '700' }, saveText: { color: colors.brown, fontFamily: fonts.body, fontWeight: '700' },
 });

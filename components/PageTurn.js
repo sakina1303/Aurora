@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, View } from 'react-native';
-import { colors } from '../theme';
+import { useTheme } from '../theme';
 
 // The outgoing page stays visible through the first half of the turn. Its paper
 // back is visible during the second half, with the destination page underneath.
 export default function PageTurn({ from, to, direction = 'forward', onFinished }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const progress = useRef(new Animated.Value(0)).current;
   const finishRef = useRef(onFinished);
   finishRef.current = onFinished;
@@ -54,7 +56,7 @@ export default function PageTurn({ from, to, direction = 'forward', onFinished }
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = colors => StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, zIndex: 50 },
   book: { flex: 1 },
   turningPage: { ...StyleSheet.absoluteFillObject, backfaceVisibility: 'visible' },

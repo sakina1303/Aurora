@@ -5,22 +5,37 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import DiaryPage from '../components/DiaryPage';
+import ThemePicker from '../components/ThemePicker';
 import PageTurn from '../components/PageTurn';
 import { addDays, dayAccess, listJournals, saveJournal } from '../lib/diary';
 import { persistImage } from '../lib/media';
 import useLocalDay from '../lib/useLocalDay';
-import { colors, fonts } from '../theme';
+import { moodFor, moods } from '../lib/moods';
+import { fonts, useTheme } from '../theme';
+
+const prompts = [
+  'A little thing that made me smile...',
+  'Something I want to remember...',
+  'Today I felt most like myself when...',
+  'A thought I am ready to let go of...',
+  'Dear diary, today...',
+];
 
 export default function HomeScreen({ navigation }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const today = useLocalDay();
   const [date, setDate] = useState(today);
   const [entries, setEntries] = useState([]);
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [images, setImages] = useState([]);
+  const [mood, setMood] = useState(null);
   const [saved, setSaved] = useState(true);
   const [turning, setTurning] = useState(false);
   const [turnTarget, setTurnTarget] = useState(null);
+  const [themeOpen, setThemeOpen] = useState(false);
+  const [promptIndex, setPromptIndex] = useState(-1);
   const dirtyRef = useRef(false);
   const swipeStart = useRef(null);
 
@@ -35,6 +50,7 @@ export default function HomeScreen({ navigation }) {
       setTitle(entry?.title || '');
       setText(entry?.text || '');
       setImages(entry?.images || []);
+      setMood(entry?.mood || null);
       setSaved(true);
       dirtyRef.current = false;
       setTurning(false);
@@ -42,7 +58,7 @@ export default function HomeScreen({ navigation }) {
     return () => { active = false; };
   }, [today]));
 
-  const entry = { date, title, text, images };
+  const entry = { date, title, text, images, mood };
   const markDirty = () => { dirtyRef.current = true; setSaved(false); };
   const save = async () => {
     if (!title.trim() || !text.trim()) {
@@ -63,7 +79,7 @@ export default function HomeScreen({ navigation }) {
 
   const openDiary = () => {
     const go = () => setTurning(true);
-    if (saved || (!title && !text && images.length === 0)) return go();
+    if (saved || (!title && !text && images.length === 0 && !mood)) return go();
     Alert.alert('Save this page?', 'Your diary has unsaved changes.', [
       { text: 'Keep writing', style: 'cancel' },
       { text: 'Discard changes', style: 'destructive', onPress: () => { dirtyRef.current = false; go(); } },
@@ -74,7 +90,7 @@ export default function HomeScreen({ navigation }) {
   const openDay = (target) => {
     if (target > addDays(today, 1) || turning || turnTarget) return;
     const go = () => setTurnTarget(target);
-    if (saved || (!title && !text && images.length === 0)) return go();
+    if (saved || (!title && !text && images.length === 0 && !mood)) return go();
     Alert.alert('Save this page?', 'Your diary has unsaved changes.', [
       { text: 'Keep writing', style: 'cancel' },
       { text: 'Discard changes', style: 'destructive', onPress: () => { dirtyRef.current = false; go(); } },
@@ -132,13 +148,16 @@ export default function HomeScreen({ navigation }) {
   return <SafeAreaView style={styles.screen}>
     <View style={styles.header}>
       <View><Text style={styles.brand}>Aurora</Text><Text style={styles.subtitle}>A place for your little moments</Text></View>
-      <TouchableOpacity accessibilityRole="button" accessibilityLabel="Open diary" onPress={openDiary} style={styles.headerButton}><Text style={styles.headerButtonText}>My pages ›</Text></TouchableOpacity>
+      <View style={styles.headerActions}><TouchableOpacity accessibilityRole="button" accessibilityLabel="Choose app theme" onPress={() => setThemeOpen(true)} style={styles.themeButton}><Ionicons name="color-palette-outline" size={21} color={colors.brown} /></TouchableOpacity><TouchableOpacity accessibilityRole="button" accessibilityLabel="Open diary" onPress={openDiary} style={styles.headerButton}><Text style={styles.headerButtonText}>My pages ›</Text></TouchableOpacity></View>
     </View>
     <KeyboardAvoidingView style={styles.content} behavior={Platform.OS === 'ios' ? 'padding' : undefined} {...(Platform.OS !== 'web' ? responder.panHandlers : { onMouseDown: beginSwipe, onMouseUp: endSwipe, onTouchStart: beginSwipe, onTouchEnd: endSwipe })}>
       <DiaryPage entry={entry} pageNumber={1} editing>
         <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TextInput style={styles.titleInput} placeholder="Give this day a title..." placeholderTextColor={colors.muted} value={title} onChangeText={value => { setTitle(value); markDirty(); }} maxLength={80} accessibilityLabel="Journal title" />
-          <TextInput style={styles.bodyInput} placeholder="Dear diary, today..." placeholderTextColor={colors.muted} value={text} onChangeText={value => { setText(value); markDirty(); }} multiline textAlignVertical="top" accessibilityLabel="Journal entry" />
+          <View style={styles.moodRow}><Text style={styles.moodLabel}>{mood ? `FEELING ${moodFor(mood)?.label.toUpperCase()}` : 'TODAY FEELS'}</Text>{moods.map(option => <TouchableOpacity key={option.id} onPress={() => { setMood(current => current === option.id ? null : option.id); markDirty(); }} accessibilityRole="button" accessibilityLabel={`${option.label} mood`} accessibilityState={{ selected: mood === option.id }} style={[styles.moodChip, mood === option.id && styles.moodChipSelected]}><Text style={[styles.moodSymbol, mood === option.id && styles.moodSymbolSelected]}>{option.symbol}</Text></TouchableOpacity>)}</View>
+          <TouchableOpacity onPress={() => setPromptIndex(current => (current + 1) % prompts.length)} style={styles.promptButton} accessibilityLabel="See another writing prompt"><Ionicons name="sparkles-outline" size={13} color={colors.brown} /><Text style={styles.promptText}>A writing spark</Text><Ionicons name="refresh-outline" size={12} color={colors.muted} /></TouchableOpacity>
+          {promptIndex >= 0 && <View style={styles.promptCard}><Text style={styles.promptCardText}>{prompts[promptIndex]}</Text><TouchableOpacity onPress={() => setPromptIndex(-1)} accessibilityLabel="Dismiss writing prompt"><Ionicons name="close" size={15} color={colors.muted} /></TouchableOpacity></View>}
+          <TextInput style={styles.bodyInput} placeholder={promptIndex >= 0 ? prompts[promptIndex] : 'Dear diary, today...'} placeholderTextColor={colors.muted} value={text} onChangeText={value => { setText(value); markDirty(); }} multiline textAlignVertical="top" accessibilityLabel="Journal entry" />
           <View style={styles.photoHeader}><Text style={styles.sectionLabel}>LITTLE MOMENTS</Text>{Platform.OS !== 'web' && <TouchableOpacity onPress={() => addPhoto(true)} accessibilityLabel="Take a photo" style={styles.cameraButton}><Ionicons name="camera-outline" size={19} color={colors.brown} /></TouchableOpacity>}</View>
           <TouchableOpacity onPress={() => addPhoto(false)} accessibilityRole="button" accessibilityLabel="Choose a diary photo" style={styles.photoPicker}><Ionicons name="images-outline" size={22} color={colors.brown} /><View style={{ flex: 1 }}><Text style={styles.photoPickerTitle}>{images.length ? 'Add another memory' : 'Add a photo to this day'}</Text><Text style={styles.photoPickerSub}>A little picture makes the page yours</Text></View><Ionicons name="add" size={20} color={colors.brown} /></TouchableOpacity>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
@@ -161,22 +180,27 @@ export default function HomeScreen({ navigation }) {
       <Text style={styles.saveState}>{saved ? 'Your page is up to date' : 'Unsaved changes'}</Text>
       <TouchableOpacity style={styles.saveButton} onPress={save} accessibilityRole="button"><Text style={styles.saveButtonText}>Save this page</Text></TouchableOpacity>
     </View>
+    <ThemePicker visible={themeOpen} onClose={() => setThemeOpen(false)} />
   </SafeAreaView>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = colors => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 13, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brand: { fontFamily: fonts.display, fontSize: 39, color: colors.brown, lineHeight: 43 },
   subtitle: { fontFamily: fonts.body, color: colors.muted, fontSize: 11, letterSpacing: 0.4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' }, themeButton: { padding: 9, marginRight: 2, borderRadius: 18, backgroundColor: colors.paper },
   headerButton: { padding: 10 }, headerButtonText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
   content: { flex: 1, marginHorizontal: 17, marginBottom: 5 },
   titleInput: { fontFamily: fonts.accent, fontSize: 20, color: colors.ink, paddingVertical: 7 },
-  bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 28, minHeight: 150, paddingTop: 13 },
+  moodRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2, marginBottom: 5 }, moodLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1.1, marginRight: 2 }, moodChip: { width: 29, height: 29, borderRadius: 15, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' }, moodChipSelected: { backgroundColor: colors.brown, borderColor: colors.brown }, moodSymbol: { fontFamily: fonts.body, color: colors.brown, fontSize: 16 }, moodSymbolSelected: { color: colors.white },
+  promptButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', paddingVertical: 4 }, promptText: { fontFamily: fonts.body, color: colors.brown, fontSize: 10, fontWeight: '700' },
+  promptCard: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: colors.soft, borderLeftWidth: 2, borderLeftColor: colors.rose, borderRadius: 6, marginTop: 3 }, promptCardText: { flex: 1, fontFamily: fonts.display, fontSize: 16, color: colors.brown },
+  bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 28, minHeight: 105, paddingTop: 8 },
   photoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: colors.line, paddingTop: 16 },
   sectionLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1.6 },
   cameraButton: { padding: 4 },
-  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: '#D7B9AA', borderRadius: 11, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: '#F8F0E8', marginTop: 12 },
+  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.paperEdge, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: colors.soft, marginTop: 12 },
   photoPickerTitle: { fontFamily: fonts.body, color: colors.ink, fontSize: 12, fontWeight: '700' },
   photoPickerSub: { fontFamily: fonts.body, color: colors.muted, fontSize: 10, marginTop: 2 },
   photoWrap: { marginRight: 10 }, photo: { width: 95, height: 105, borderWidth: 5, borderColor: colors.white, borderRadius: 3 },

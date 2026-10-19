@@ -7,11 +7,13 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import { LinearGradient } from 'expo-linear-gradient';
 import CelebrationBurst from '../components/CelebrationBurst';
 import { addDays, currentStreak, loadHabits, localDay, saveHabits } from '../lib/diary';
-import { colors, fonts } from '../theme';
+import { fonts, useTheme } from '../theme';
 
 const weekLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export default function StreaksScreen() {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [habits, setHabits] = useState([]);
   const habitsRef = useRef([]);
   const [today, setToday] = useState(localDay());
@@ -70,7 +72,7 @@ export default function StreaksScreen() {
       <Text style={styles.title}>My rituals</Text>
       <Text style={styles.intro}>A gentle record of showing up for yourself.</Text>
     </View>
-    <LinearGradient colors={['#E6C5B5', '#F3DDC9', '#E6E4D0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summary}><View style={styles.summaryIcon}><Ionicons name="sparkles" size={23} color={colors.brown} /></View><View style={{ flex: 1, marginLeft: 13 }}><Text style={styles.summaryTitle}>{completedToday} of {habits.length} complete</Text><Text style={styles.summarySub}>{habits.length ? 'Your little wins are adding up ♡' : 'Your journey starts with one little step.'}</Text></View></LinearGradient>
+    <LinearGradient colors={[colors.summaryStart, colors.summaryMiddle, colors.summaryEnd]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.summary}><View style={styles.summaryIcon}><Ionicons name="sparkles" size={23} color={colors.brown} /></View><View style={{ flex: 1, marginLeft: 13 }}><Text style={styles.summaryTitle}>{completedToday} of {habits.length} complete</Text><Text style={styles.summarySub}>{habits.length ? 'Your little wins are adding up ♡' : 'Your journey starts with one little step.'}</Text></View></LinearGradient>
     <View style={styles.addRow}><TextInput style={styles.input} value={newName} onChangeText={setNewName} placeholder="A ritual to begin..." placeholderTextColor={colors.muted} returnKeyType="done" onSubmitEditing={add} maxLength={40} accessibilityLabel="New ritual name" /><TouchableOpacity style={styles.addButton} onPress={add} accessibilityLabel="Add ritual"><Ionicons name="add" size={23} color={colors.white} /></TouchableOpacity></View>
     <FlatList data={habits} keyExtractor={item => item.id} contentContainerStyle={styles.list} ListEmptyComponent={<View style={styles.empty}><Ionicons name="leaf-outline" size={35} color={colors.sage} /><Text style={styles.emptyTitle}>Begin gently</Text><Text style={styles.emptyText}>Add a ritual above, then mark it when you do it today.</Text></View>} renderItem={({ item }) => {
       const dates = new Set(item.completedDates || []);
@@ -87,12 +89,12 @@ export default function StreaksScreen() {
   </SafeAreaView>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = colors => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: { paddingHorizontal: 24, paddingTop: 14 }, kicker: { fontFamily: fonts.body, color: colors.muted, letterSpacing: 2.2, fontSize: 10, fontWeight: '700' },
   title: { fontFamily: fonts.display, fontSize: 43, color: colors.brown, marginTop: 4 }, intro: { fontFamily: fonts.body, color: colors.muted, fontSize: 13 },
   summary: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 20, borderRadius: 18, padding: 19, minHeight: 92, shadowColor: '#9C7C69', shadowOpacity: 0.12, shadowRadius: 10, elevation: 3 },
-  summaryIcon: { width: 43, height: 43, borderRadius: 22, backgroundColor: '#FFF8E6AA', alignItems: 'center', justifyContent: 'center' },
+  summaryIcon: { width: 43, height: 43, borderRadius: 22, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' },
   summaryTitle: { fontFamily: fonts.accent, color: colors.ink, fontSize: 19 }, summarySub: { fontFamily: fonts.body, color: colors.brown, fontSize: 12, marginTop: 3 },
   addRow: { flexDirection: 'row', marginHorizontal: 20, marginTop: 18, gap: 9 },
   input: { flex: 1, fontFamily: fonts.body, backgroundColor: colors.paper, color: colors.ink, borderRadius: 12, borderColor: colors.line, borderWidth: 1, paddingHorizontal: 14, height: 48 },
@@ -102,9 +104,9 @@ const styles = StyleSheet.create({
   cardAccent: { position: 'absolute', top: 0, left: 0, bottom: 0, width: 5, backgroundColor: colors.rose }, cardAccentDone: { backgroundColor: colors.sage },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start' }, habitName: { fontFamily: fonts.accent, fontSize: 22, color: colors.ink }, streak: { fontFamily: fonts.body, color: colors.brown, fontSize: 12, marginTop: 3 }, more: { padding: 5 },
   week: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 18 }, dayColumn: { alignItems: 'center', gap: 8 }, dayLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 10 },
-  dot: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#E9E1D6', alignItems: 'center', justifyContent: 'center' }, dotDone: { backgroundColor: colors.sage }, dotToday: { borderWidth: 2, borderColor: colors.brown },
+  dot: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' }, dotDone: { backgroundColor: colors.sage }, dotToday: { borderWidth: 2, borderColor: colors.brown },
   completeButton: { backgroundColor: colors.brown, borderRadius: 10, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 7 },
-  completeButtonDone: { backgroundColor: '#EFE8DC' }, completeText: { fontFamily: fonts.body, color: colors.white, fontSize: 13, fontWeight: '700' }, completeTextDone: { color: colors.brown },
+  completeButtonDone: { backgroundColor: colors.soft }, completeText: { fontFamily: fonts.body, color: colors.white, fontSize: 13, fontWeight: '700' }, completeTextDone: { color: colors.brown },
   empty: { alignItems: 'center', paddingHorizontal: 32, paddingTop: 70 }, emptyTitle: { fontFamily: fonts.display, color: colors.brown, fontSize: 30, marginTop: 10 }, emptyText: { fontFamily: fonts.body, color: colors.muted, textAlign: 'center', lineHeight: 21, marginTop: 5 },
   modalShade: { flex: 1, justifyContent: 'center', backgroundColor: '#0007', padding: 28 }, modal: { backgroundColor: colors.paper, borderRadius: 16, padding: 22 }, modalTitle: { fontFamily: fonts.display, color: colors.brown, fontSize: 29 }, modalInput: { fontFamily: fonts.body, borderWidth: 1, borderColor: colors.line, borderRadius: 10, padding: 12, marginTop: 13, color: colors.ink }, modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 25, marginTop: 20 }, cancel: { fontFamily: fonts.body, color: colors.muted, fontWeight: '700' }, confirm: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700' },
 });

@@ -8,9 +8,12 @@ import PageTurn from '../components/PageTurn';
 import { addDays, dayAccess, deleteJournal, displayDate, listJournals, saveJournal } from '../lib/diary';
 import { persistImage } from '../lib/media';
 import useLocalDay from '../lib/useLocalDay';
-import { colors, fonts } from '../theme';
+import { moodFor, moods } from '../lib/moods';
+import { fonts, useTheme } from '../theme';
 
 export default function JournalDetailScreen({ route, navigation }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const [entries, setEntries] = useState([]);
   const today = useLocalDay();
   const [selectedDate, setSelectedDate] = useState(route.params?.date || today);
@@ -24,7 +27,7 @@ export default function JournalDetailScreen({ route, navigation }) {
   const pageFor = useCallback(day => {
     if (day > today) return { date: day, title: '', text: '', images: [], isLocked: true };
     return entries.find(item => item.date === day) || {
-      date: day, title: 'An unwritten day', text: 'Nothing was written on this day. Tap Write to add a memory.', images: [], isBlank: true,
+      date: day, title: 'An unwritten day', text: 'Nothing was written on this day. Tap Write to add a memory.', images: [], mood: null, isBlank: true,
     };
   }, [entries, today]);
   const entry = pageFor(selectedDate);
@@ -142,6 +145,7 @@ export default function JournalDetailScreen({ route, navigation }) {
       {editing ? <DiaryPage entry={draft} pageNumber={pageNumber} editing>
         <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
           <TextInput value={draft.title} onChangeText={value => setDraft(current => ({ ...current, title: value }))} style={styles.titleInput} placeholder="Page title" placeholderTextColor={colors.muted} />
+          <View style={styles.moodRow}><Text style={styles.moodLabel}>{draft.mood ? `FELT ${moodFor(draft.mood)?.label.toUpperCase()}` : 'THIS DAY FELT'}</Text>{moods.map(option => <TouchableOpacity key={option.id} onPress={() => setDraft(current => ({ ...current, mood: current.mood === option.id ? null : option.id }))} accessibilityRole="button" accessibilityLabel={`${option.label} mood`} accessibilityState={{ selected: draft.mood === option.id }} style={[styles.moodChip, draft.mood === option.id && styles.moodChipSelected]}><Text style={[styles.moodSymbol, draft.mood === option.id && styles.moodSymbolSelected]}>{option.symbol}</Text></TouchableOpacity>)}</View>
           <TextInput value={draft.text} onChangeText={value => setDraft(current => ({ ...current, text: value }))} style={styles.bodyInput} placeholder="Your thoughts..." placeholderTextColor={colors.muted} multiline textAlignVertical="top" />
           <TouchableOpacity onPress={addPhoto} style={styles.photoPicker} accessibilityLabel="Choose a diary photo"><Ionicons name="images-outline" size={20} color={colors.brown} /><Text style={styles.addPhoto}>Add a photo to this page</Text></TouchableOpacity>
           <View style={styles.photos}>{draft.images.map((uri, photoIndex) => <View key={`${uri}-${photoIndex}`} style={styles.photoWrap}><Image source={{ uri }} style={styles.photo} /><TouchableOpacity style={styles.removePhoto} onPress={() => setDraft(current => ({ ...current, images: current.images.filter((_, i) => i !== photoIndex) }))}><Text>×</Text></TouchableOpacity></View>)}</View>
@@ -159,6 +163,8 @@ export default function JournalDetailScreen({ route, navigation }) {
 }
 
 function ReaderPage({ entry, pageNumber, compact = false }) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   if (!entry.isLocked) return <DiaryPage entry={entry} pageNumber={pageNumber} compact={compact} />;
   const zone = dayAccess(entry.date).timeZone;
   return <DiaryPage entry={entry} pageNumber={pageNumber} editing>
@@ -172,7 +178,7 @@ function ReaderPage({ entry, pageNumber, compact = false }) {
   </DiaryPage>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = colors => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   header: { height: 55, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 17 },
   headerAction: { minWidth: 45, padding: 8 },
@@ -190,8 +196,9 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.3 }, turnText: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 13 },
   position: { fontFamily: fonts.body, color: colors.muted, fontSize: 12 },
   titleInput: { fontFamily: fonts.accent, fontSize: 20, color: colors.ink, paddingVertical: 7 },
+  moodRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 2, marginBottom: 6 }, moodLabel: { fontFamily: fonts.body, color: colors.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1, marginRight: 2 }, moodChip: { width: 29, height: 29, borderRadius: 15, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.paper, alignItems: 'center', justifyContent: 'center' }, moodChipSelected: { backgroundColor: colors.brown, borderColor: colors.brown }, moodSymbol: { fontFamily: fonts.body, color: colors.brown, fontSize: 16 }, moodSymbolSelected: { color: colors.white },
   bodyInput: { fontFamily: fonts.body, color: colors.ink, fontSize: 16, lineHeight: 28, minHeight: 170, paddingTop: 12 },
-  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: '#D7B9AA', borderRadius: 10, backgroundColor: '#F8F0E8' },
+  photoPicker: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.paperEdge, borderRadius: 10, backgroundColor: colors.soft },
   addPhoto: { fontFamily: fonts.body, color: colors.brown, fontWeight: '700', fontSize: 12 },
   photos: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, photoWrap: { position: 'relative' },
   photo: { width: 90, height: 90, borderRadius: 5 },
